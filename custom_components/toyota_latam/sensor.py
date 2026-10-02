@@ -41,7 +41,60 @@ def _active_geofences(d: VehicleData) -> int | None:
     return sum(g.active for g in d.geofences) if d.geofences else None
 
 
+def _score(attr: str):
+    return lambda d: getattr(d.score, attr) if d.score else None
+
+
 SENSORS: tuple[ToyotaSensorDescription, ...] = (
+    ToyotaSensorDescription(
+        key="color",
+        translation_key="color",
+        icon="mdi:palette",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.vehicle.color,
+    ),
+    ToyotaSensorDescription(
+        key="plate",
+        translation_key="plate",
+        icon="mdi:car-esp",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.vehicle.plate,
+    ),
+    ToyotaSensorDescription(
+        key="driving_score",
+        translation_key="driving_score",
+        icon="mdi:speedometer",
+        native_unit_of_measurement="pts",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_score("points"),
+        attrs_fn=lambda d: (
+            {
+                "level": d.score.level,
+                "level_points": d.score.level_points,
+                "level_min_points": d.score.level_min_points,
+                "level_max_points": d.score.level_max_points,
+                "speed_badges": d.score.speed_badges,
+                "acceleration_badges": d.score.acceleration_badges,
+                "rpm_badges": d.score.rpm_badges,
+            }
+            if d.score
+            else {}
+        ),
+    ),
+    ToyotaSensorDescription(
+        key="driving_level",
+        translation_key="driving_level",
+        icon="mdi:stairs-up",
+        value_fn=_score("level"),
+    ),
+    ToyotaSensorDescription(
+        key="available_services",
+        translation_key="available_services",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:cloud-check",
+        value_fn=lambda d: sum(d.services.flags.values()) if d.services else None,
+        attrs_fn=lambda d: dict(sorted(d.services.flags.items())) if d.services else {},
+    ),
     ToyotaSensorDescription(
         key="address",
         translation_key="address",

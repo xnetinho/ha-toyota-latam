@@ -73,6 +73,21 @@
       },
       "maps_key": {
         "name": "Google Maps key"
+      },
+      "color": {
+        "name": "Color"
+      },
+      "plate": {
+        "name": "License plate"
+      },
+      "driving_score": {
+        "name": "Driving score"
+      },
+      "driving_level": {
+        "name": "Driving level"
+      },
+      "available_services": {
+        "name": "Available services"
       }
     },
     "binary_sensor": {
@@ -87,11 +102,19 @@
       },
       "connected_services": {
         "name": "Connected services"
+      },
+      "problem": {
+        "name": "Problem"
       }
     },
     "button": {
       "refresh": {
         "name": "Refresh"
+      }
+    },
+    "image": {
+      "picture": {
+        "name": "Picture"
       }
     }
   }

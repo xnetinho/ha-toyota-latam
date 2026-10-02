@@ -76,6 +76,21 @@ TRIPS = Endpoint(
     "HIIxBlBdma9Spi2CHTDvAQ",
     "ConnectedCar_V2.LastTrips_V2",
 )
+GAMIFICATION = Endpoint(
+    "Connected_Car_MCW_NEW/FuelConsumption/FuelScore_V2/DataActionGetGamification",
+    "+Vljc2BMdTwIFoxWsVjCcg",
+    "ConnectedCar_V2.FuelScore_V2",
+)
+ECARE = Endpoint(
+    "Connected_Car_MCW_NEW/Ecare/CarDiagnostic_V2/DataActionGetEcareDtcs",
+    "+8w5wjdCooh2Lr8KIp9J8w",
+    "ConnectedCar_V2.EcareCarDiagnostic_V2",
+)
+SERVICES = Endpoint(
+    "MyToyota_MCW/OptimizationBlocks/VehicleStatusServices_V2/DataActionShowServices",
+    "BzTW0YOfkIV13CC23Gsj9Q",
+    "NewDesign_TLAC.MyToyota_V3",
+)
 GEOFENCES = Endpoint(
     "Connected_Car_MCW_NEW/Geofence/GeofenceHome_V2/DataActionGetGeofences",
     "nrim6nXWO8vQkc+L3hxugQ",
@@ -105,6 +120,16 @@ def _dt(v: Any) -> datetime | None:
     return d if d.tzinfo else d.replace(tzinfo=UTC)
 
 
+def _png(v: Any) -> bytes | None:
+    if not v or not isinstance(v, str):
+        return None
+    try:
+        raw = base64.b64decode(v, validate=False)
+    except ValueError:
+        return None
+    return raw if raw.startswith(b"\x89PNG") else None
+
+
 def _list(d: Any, *path: str) -> list[dict]:
     for p in path:
         d = d.get(p) if isinstance(d, dict) else None
@@ -127,6 +152,8 @@ class Vehicle:
     color: str | None
     year: int | None
     connected: bool
+    nickname: str | None = None
+    image: bytes | None = field(default=None, repr=False, compare=False)
 
     @classmethod
     def from_api(cls, d: dict) -> Vehicle | None:
@@ -141,6 +168,8 @@ class Vehicle:
             color=d.get("CarColor") or None,
             year=_i(d.get("Year")),
             connected=bool(d.get("IsConnected", True)),
+            nickname=d.get("CarNickName") or None,
+            image=_png(d.get("CarImage")),
         )
 
 
@@ -244,6 +273,55 @@ class Geofence:
             longitude=_f(a.get("Longitude")),
             radius=_f(a.get("Radius")),
             direction=a.get("Direction") or None,
+        )
+
+
+@dataclass(frozen=True)
+class DrivingScore:
+    points: int | None
+    level: int | None
+    level_points: int | None
+    level_min_points: int | None
+    level_max_points: int | None
+    speed_badges: int | None
+    acceleration_badges: int | None
+    rpm_badges: int | None
+
+    @classmethod
+    def from_api(cls, data: dict) -> DrivingScore:
+        r = _dict(data, "Response")
+        return cls(
+            _i(r.get("TotalPoints")),
+            _i(r.get("Level")),
+            _i(r.get("LevelPoints")),
+            _i(r.get("MinPointsLevel")),
+            _i(r.get("MaxLevelPoints")),
+            _i(r.get("QuantitySpeedBadge")),
+            _i(r.get("QuantityAccelerationBadge")),
+            _i(r.get("QuantityRpmBadge")),
+        )
+
+
+@dataclass(frozen=True)
+class Diagnostics:
+    problem_count: int
+    problems: tuple[str, ...]
+
+    @classmethod
+    def from_api(cls, data: dict) -> Diagnostics:
+        items = _list(data, "Response", "ErrorCodes", "List")
+        titles = tuple(str(i.get("Title") or i.get("Description") or "") for i in items)
+        return cls(_i(_dict(data, "Response").get("Count")) or len(items), titles)
+
+
+@dataclass(frozen=True)
+class Services:
+    flags: dict[str, bool]
+
+    @classmethod
+    def from_api(cls, data: dict) -> Services:
+        return cls(
+            {k.removeprefix("Show").lower(): v for k, v in data.items() if k.startswith("Show") and isinstance(v, bool)}
         )
 
 
@@ -531,6 +609,15 @@ class ToyotaLatamClient:
     async def get_geofences(self, vin: str) -> list[Geofence]:
         data = await self._call(GEOFENCES, {"Vin": vin})
         return [Geofence.from_api(d) for d in _list(data, "Response", "GeoFencesList", "List")]
+
+    async def get_driving_score(self, vin: str) -> DrivingScore:
+        return DrivingScore.from_api(await self._call(GAMIFICATION, {"Vin": vin}))
+
+    async def get_diagnostics(self, vin: str) -> Diagnostics:
+        return Diagnostics.from_api(await self._call(ECARE, {"Vin": vin, "ShowPopup": False}))
+
+    async def get_services(self, vin: str) -> Services:
+        return Services.from_api(await self._call(SERVICES, {"Vin": vin, "UserType": "OWNER"}))
 
     async def reverse_geocode(self, lat: float, lon: float, maps_key: str, language: str = "pt-BR") -> str | None:
         try:

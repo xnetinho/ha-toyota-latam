@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ToyotaConfigEntry
+from .const import DOMAIN
 from .entity import ToyotaEntity
 
 
@@ -26,6 +27,19 @@ class ToyotaTracker(ToyotaEntity, TrackerEntity):
     def available(self) -> bool:
         d = self.vehicle_data
         return super().available and d.location is not None and d.location.latitude is not None
+
+    @property
+    def entity_picture(self) -> str | None:
+        d = self.vehicle_data
+        if not d or not d.vehicle.image:
+            return None
+        return f"/api/image_proxy/{self._image_entity_id}" if self._image_entity_id else None
+
+    @property
+    def _image_entity_id(self) -> str | None:
+        from homeassistant.helpers import entity_registry as er
+
+        return er.async_get(self.hass).async_get_entity_id("image", DOMAIN, f"{self.vin}_picture")
 
     @property
     def latitude(self) -> float | None:
