@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Toyota LATAM",
+        "description": "Sign in with the account you use in the Toyota app.",
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate",
+        "description": "Enter the new password for {username}.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Could not reach Toyota. Try again later.",
+      "no_vehicles": "No vehicles found in this account.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Re-authentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Toyota LATAM options",
+        "data": {
+          "active_interval": "Update interval while driving (s)",
+          "parked_interval": "Update interval while parked (s)",
+          "resolve_address": "Resolve street address (uses Toyota's Google Maps key)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "location": {
+        "name": "Location"
+      }
+    },
+    "sensor": {
+      "fuel_level": {
+        "name": "Fuel level"
+      },
+      "odometer": {
+        "name": "Odometer"
+      },
+      "last_report": {
+        "name": "Last report"
+      },
+      "last_ignition_on": {
+        "name": "Last ignition on"
+      },
+      "last_trip_distance": {
+        "name": "Last trip distance"
+      },
+      "last_trip_end": {
+        "name": "Last trip end"
+      },
+      "active_geofences": {
+        "name": "Active geofences"
+      },
+      "address": {
+        "name": "Address"
+      },
+      "maps_key": {
+        "name": "Google Maps key"
+      }
+    },
+    "binary_sensor": {
+      "ignition": {
+        "name": "Ignition"
+      },
+      "moving": {
+        "name": "Moving"
+      },
+      "stolen_tracking": {
+        "name": "Stolen vehicle tracking"
+      },
+      "connected_services": {
+        "name": "Connected services"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    }
+  }
+}

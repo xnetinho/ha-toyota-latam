@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Toyota LATAM",
+        "description": "Inicia sesión con la cuenta que usas en la app de Toyota.",
+        "data": {
+          "username": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Volver a autenticar",
+        "description": "Introduce la nueva contraseña de {username}.",
+        "data": {
+          "password": "Contraseña"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Correo o contraseña no válidos.",
+      "cannot_connect": "No se pudo conectar con Toyota. Inténtalo más tarde.",
+      "no_vehicles": "No se encontraron vehículos en esta cuenta.",
+      "unknown": "Error inesperado."
+    },
+    "abort": {
+      "already_configured": "Esta cuenta ya está configurada.",
+      "reauth_successful": "Reautenticación correcta."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Toyota LATAM",
+        "data": {
+          "active_interval": "Intervalo de actualización en movimiento (s)",
+          "parked_interval": "Intervalo de actualización estacionado (s)",
+          "resolve_address": "Resolver dirección (usa la clave de Google Maps de Toyota)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "location": {
+        "name": "Ubicación"
+      }
+    },
+    "sensor": {
+      "fuel_level": {
+        "name": "Nivel de combustible"
+      },
+      "odometer": {
+        "name": "Odómetro"
+      },
+      "last_report": {
+        "name": "Último reporte"
+      },
+      "last_ignition_on": {
+        "name": "Último encendido"
+      },
+      "last_trip_distance": {
+        "name": "Distancia del último viaje"
+      },
+      "last_trip_end": {
+        "name": "Fin del último viaje"
+      },
+      "active_geofences": {
+        "name": "Geocercas activas"
+      },
+      "address": {
+        "name": "Dirección"
+      },
+      "maps_key": {
+        "name": "Clave de Google Maps"
+      }
+    },
+    "binary_sensor": {
+      "ignition": {
+        "name": "Encendido"
+      },
+      "moving": {
+        "name": "En movimiento"
+      },
+      "stolen_tracking": {
+        "name": "Rastreo de robo"
+      },
+      "connected_services": {
+        "name": "Servicios conectados"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Actualizar"
+      }
+    }
+  }
+}

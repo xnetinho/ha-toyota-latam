@@ -1,0 +1,98 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Toyota LATAM",
+        "description": "Entre com a conta que você usa no app da Toyota.",
+        "data": {
+          "username": "E-mail",
+          "password": "Senha"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Autenticar novamente",
+        "description": "Informe a nova senha de {username}.",
+        "data": {
+          "password": "Senha"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "E-mail ou senha inválidos.",
+      "cannot_connect": "Não foi possível conectar à Toyota. Tente novamente mais tarde.",
+      "no_vehicles": "Nenhum veículo encontrado nesta conta.",
+      "unknown": "Erro inesperado."
+    },
+    "abort": {
+      "already_configured": "Esta conta já está configurada.",
+      "reauth_successful": "Autenticação refeita com sucesso."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções Toyota LATAM",
+        "data": {
+          "active_interval": "Intervalo de atualização em movimento (s)",
+          "parked_interval": "Intervalo de atualização estacionado (s)",
+          "resolve_address": "Resolver endereço (usa a chave do Google Maps da Toyota)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "device_tracker": {
+      "location": {
+        "name": "Localização"
+      }
+    },
+    "sensor": {
+      "fuel_level": {
+        "name": "Nível de combustível"
+      },
+      "odometer": {
+        "name": "Odômetro"
+      },
+      "last_report": {
+        "name": "Último relatório"
+      },
+      "last_ignition_on": {
+        "name": "Última ignição ligada"
+      },
+      "last_trip_distance": {
+        "name": "Distância da última viagem"
+      },
+      "last_trip_end": {
+        "name": "Fim da última viagem"
+      },
+      "active_geofences": {
+        "name": "Geocercas ativas"
+      },
+      "address": {
+        "name": "Endereço"
+      },
+      "maps_key": {
+        "name": "Chave do Google Maps"
+      }
+    },
+    "binary_sensor": {
+      "ignition": {
+        "name": "Ignição"
+      },
+      "moving": {
+        "name": "Em movimento"
+      },
+      "stolen_tracking": {
+        "name": "Rastreamento de roubo"
+      },
+      "connected_services": {
+        "name": "Serviços conectados"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Atualizar"
+      }
+    }
+  }
+}
