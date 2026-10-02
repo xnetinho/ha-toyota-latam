@@ -73,6 +73,75 @@
       },
       "maps_key": {
         "name": "Chave do Google Maps"
+      },
+      "color": {
+        "name": "Cor"
+      },
+      "plate": {
+        "name": "Placa"
+      },
+      "driving_score": {
+        "name": "Pontuação de direção"
+      },
+      "driving_level": {
+        "name": "Nível de direção"
+      },
+      "available_services": {
+        "name": "Serviços disponíveis"
+      },
+      "speed": {
+        "name": "Velocidade"
+      },
+      "engine_speed": {
+        "name": "Rotação do motor"
+      },
+      "battery_voltage": {
+        "name": "Tensão da bateria"
+      },
+      "battery_status": {
+        "name": "Estado da bateria"
+      },
+      "fuel_remaining": {
+        "name": "Combustível restante"
+      },
+      "mileage": {
+        "name": "Quilometragem"
+      },
+      "vehicle_status": {
+        "name": "Estado do veículo"
+      },
+      "heading": {
+        "name": "Direção"
+      },
+      "dtc_codes": {
+        "name": "Códigos de falha"
+      },
+      "last_trip_speed_limit": {
+        "name": "Limite de velocidade da última viagem"
+      },
+      "speed_alert_limit": {
+        "name": "Limite do alerta de velocidade"
+      },
+      "tracking_tickets": {
+        "name": "Chamados de rastreamento"
+      },
+      "assistance_tickets": {
+        "name": "Chamados de assistência"
+      },
+      "ecall_tickets": {
+        "name": "Chamados eCall"
+      },
+      "alarm_status": {
+        "name": "Alarme"
+      },
+      "geofence_breaks": {
+        "name": "Violações de geocerca"
+      },
+      "last_geofence_break": {
+        "name": "Última violação de geocerca"
+      },
+      "registered_at": {
+        "name": "Cadastrado no app"
       }
     },
     "binary_sensor": {
@@ -87,11 +156,25 @@
       },
       "connected_services": {
         "name": "Serviços conectados"
+      },
+      "problem": {
+        "name": "Problema"
+      },
+      "speed_alert_enabled": {
+        "name": "Alerta de velocidade"
+      },
+      "geofence_break_unread": {
+        "name": "Violação de geocerca não lida"
       }
     },
     "button": {
       "refresh": {
         "name": "Atualizar"
+      }
+    },
+    "image": {
+      "picture": {
+        "name": "Foto"
       }
     }
   }

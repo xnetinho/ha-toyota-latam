@@ -73,6 +73,75 @@
       },
       "maps_key": {
         "name": "Google Maps key"
+      },
+      "color": {
+        "name": "Color"
+      },
+      "plate": {
+        "name": "License plate"
+      },
+      "driving_score": {
+        "name": "Driving score"
+      },
+      "driving_level": {
+        "name": "Driving level"
+      },
+      "available_services": {
+        "name": "Available services"
+      },
+      "speed": {
+        "name": "Speed"
+      },
+      "engine_speed": {
+        "name": "Engine speed"
+      },
+      "battery_voltage": {
+        "name": "Battery voltage"
+      },
+      "battery_status": {
+        "name": "Battery status"
+      },
+      "fuel_remaining": {
+        "name": "Fuel remaining"
+      },
+      "mileage": {
+        "name": "Mileage"
+      },
+      "vehicle_status": {
+        "name": "Vehicle status"
+      },
+      "heading": {
+        "name": "Heading"
+      },
+      "dtc_codes": {
+        "name": "Trouble codes"
+      },
+      "last_trip_speed_limit": {
+        "name": "Last trip speed limit"
+      },
+      "speed_alert_limit": {
+        "name": "Speed alert limit"
+      },
+      "tracking_tickets": {
+        "name": "Tracking tickets"
+      },
+      "assistance_tickets": {
+        "name": "Assistance tickets"
+      },
+      "ecall_tickets": {
+        "name": "eCall tickets"
+      },
+      "alarm_status": {
+        "name": "Alarm"
+      },
+      "geofence_breaks": {
+        "name": "Geofence breaks"
+      },
+      "last_geofence_break": {
+        "name": "Last geofence break"
+      },
+      "registered_at": {
+        "name": "Registered in app"
       }
     },
     "binary_sensor": {
@@ -87,11 +156,25 @@
       },
       "connected_services": {
         "name": "Connected services"
+      },
+      "problem": {
+        "name": "Problem"
+      },
+      "speed_alert_enabled": {
+        "name": "Speed alert"
+      },
+      "geofence_break_unread": {
+        "name": "Unread geofence break"
       }
     },
     "button": {
       "refresh": {
         "name": "Refresh"
+      }
+    },
+    "image": {
+      "picture": {
+        "name": "Picture"
       }
     }
   }

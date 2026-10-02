@@ -20,7 +20,7 @@ async def test_parked_interval_and_data(hass, entry, mock_client):
     co = await setup(hass, entry)
     assert entry.state is ConfigEntryState.LOADED
     d = co.data[VEHICLE.vin]
-    assert d.telemetry.fuel_percent == 84 and d.last_trip.distance == 5.0 and d.geofences[0].name == "Casa"
+    assert d.telemetry.fuel_percent == 84 and d.last_trip.distance == 5.0 and d.geofences.fences[0].name == "Casa"
     assert co.update_interval == timedelta(seconds=300)
 
 

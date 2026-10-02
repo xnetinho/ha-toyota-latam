@@ -73,6 +73,75 @@
       },
       "maps_key": {
         "name": "Clave de Google Maps"
+      },
+      "color": {
+        "name": "Color"
+      },
+      "plate": {
+        "name": "Placa"
+      },
+      "driving_score": {
+        "name": "Puntaje de conducción"
+      },
+      "driving_level": {
+        "name": "Nivel de conducción"
+      },
+      "available_services": {
+        "name": "Servicios disponibles"
+      },
+      "speed": {
+        "name": "Velocidad"
+      },
+      "engine_speed": {
+        "name": "Régimen del motor"
+      },
+      "battery_voltage": {
+        "name": "Voltaje de la batería"
+      },
+      "battery_status": {
+        "name": "Estado de la batería"
+      },
+      "fuel_remaining": {
+        "name": "Combustible restante"
+      },
+      "mileage": {
+        "name": "Kilometraje"
+      },
+      "vehicle_status": {
+        "name": "Estado del vehículo"
+      },
+      "heading": {
+        "name": "Dirección"
+      },
+      "dtc_codes": {
+        "name": "Códigos de falla"
+      },
+      "last_trip_speed_limit": {
+        "name": "Límite de velocidad del último viaje"
+      },
+      "speed_alert_limit": {
+        "name": "Límite de la alerta de velocidad"
+      },
+      "tracking_tickets": {
+        "name": "Tickets de rastreo"
+      },
+      "assistance_tickets": {
+        "name": "Tickets de asistencia"
+      },
+      "ecall_tickets": {
+        "name": "Tickets eCall"
+      },
+      "alarm_status": {
+        "name": "Alarma"
+      },
+      "geofence_breaks": {
+        "name": "Violaciones de geocerca"
+      },
+      "last_geofence_break": {
+        "name": "Última violación de geocerca"
+      },
+      "registered_at": {
+        "name": "Registrado en la app"
       }
     },
     "binary_sensor": {
@@ -87,11 +156,25 @@
       },
       "connected_services": {
         "name": "Servicios conectados"
+      },
+      "problem": {
+        "name": "Problema"
+      },
+      "speed_alert_enabled": {
+        "name": "Alerta de velocidad"
+      },
+      "geofence_break_unread": {
+        "name": "Violación de geocerca sin leer"
       }
     },
     "button": {
       "refresh": {
         "name": "Actualizar"
+      }
+    },
+    "image": {
+      "picture": {
+        "name": "Foto"
       }
     }
   }

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from datetime import timedelta
 from math import asin, cos, radians, sin, sqrt
 
@@ -14,8 +14,13 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
-    Geofence,
+    Alerts,
+    CarEvent,
+    Diagnostics,
+    DrivingScore,
+    GeofenceData,
     Location,
+    Services,
     Telemetry,
     ToyotaAuthError,
     ToyotaError,
@@ -24,18 +29,21 @@ from .api import (
     Vehicle,
 )
 from .const import (
+    ALERTS_REFRESH,
     CONF_ACTIVE_INTERVAL,
     CONF_PARKED_INTERVAL,
     CONF_RESOLVE_ADDRESS,
     DEFAULT_ACTIVE_INTERVAL,
     DEFAULT_PARKED_INTERVAL,
     DEFAULT_RESOLVE_ADDRESS,
+    DIAGNOSTICS_REFRESH,
     DOMAIN,
     GARAGE_REFRESH,
     GEOCODE_MIN_MOVE_M,
     GEOFENCE_REFRESH,
     MAX_BACKOFF,
     MAX_STALE_FAILURES,
+    SLOW_REFRESH,
     TRIPS_REFRESH,
 )
 
@@ -48,9 +56,25 @@ class VehicleData:
     location: Location | None = None
     telemetry: Telemetry | None = None
     trips: tuple[Trip, ...] = ()
-    geofences: tuple[Geofence, ...] = ()
+    geofences: GeofenceData = field(default_factory=GeofenceData)
     address: str | None = None
+    score: DrivingScore | None = None
+    diagnostics: Diagnostics | None = None
+    services: Services | None = None
+    alerts: Alerts | None = None
     stale: bool = False
+
+    @property
+    def event(self) -> CarEvent:
+        """CarEvent fields merged from both vehicle endpoints (first non-empty value wins)."""
+        parts = [x.event for x in (self.telemetry, self.location) if x]
+        return CarEvent(
+            **{
+                f.name: next((v for p in parts if (v := getattr(p, f.name)) not in (None, ())), None)
+                or (() if f.name == "dtc" else None)
+                for f in fields(CarEvent)
+            }
+        )
 
     @property
     def last_trip(self) -> Trip | None:
@@ -61,6 +85,10 @@ class VehicleData:
 class _Timers:
     trips: float = float("-inf")
     geofences: float = float("-inf")
+    score: float = float("-inf")
+    diagnostics: float = float("-inf")
+    services: float = float("-inf")
+    alerts: float = float("-inf")
     geo_pos: tuple[float, float] | None = field(default=None)
     was_active: bool = False
 
@@ -135,8 +163,12 @@ class ToyotaCoordinator(DataUpdateCoordinator[dict[str, VehicleData]]):
                 location=old.location if old else None,
                 telemetry=old.telemetry if old else None,
                 trips=old.trips if old else (),
-                geofences=old.geofences if old else (),
+                geofences=old.geofences if old else GeofenceData(),
                 address=old.address if old else None,
+                score=old.score if old else None,
+                diagnostics=old.diagnostics if old else None,
+                services=old.services if old else None,
+                alerts=old.alerts if old else None,
             )
             tm = self._timers.setdefault(veh.vin, _Timers())
             try:
@@ -164,12 +196,13 @@ class ToyotaCoordinator(DataUpdateCoordinator[dict[str, VehicleData]]):
                     _LOGGER.debug("trips failed: %s", err)
             if now - tm.geofences > GEOFENCE_REFRESH:
                 try:
-                    cur = replace(cur, geofences=tuple(await self.client.get_geofences(veh.vin)))
+                    cur = replace(cur, geofences=await self.client.get_geofences(veh.vin))
                     tm.geofences = now
                 except ToyotaAuthError:
                     raise
                 except ToyotaError as err:
                     _LOGGER.debug("geofences failed: %s", err)
+            cur = await self._slow(cur, tm, now)
             tm.was_active = active
             cur = replace(cur, address=await self._address(tm, cur))
             out[veh.vin] = cur
@@ -177,9 +210,33 @@ class ToyotaCoordinator(DataUpdateCoordinator[dict[str, VehicleData]]):
             raise errors[0]
         return out
 
+    async def _slow(self, cur: VehicleData, tm: _Timers, now: float) -> VehicleData:
+        """Optional endpoints: failures are logged at debug and never affect core data."""
+        vin = cur.vehicle.vin
+        for attr, interval, fetch in (
+            ("score", SLOW_REFRESH, self.client.get_driving_score),
+            ("diagnostics", DIAGNOSTICS_REFRESH, self.client.get_diagnostics),
+            ("services", SLOW_REFRESH, self.client.get_services),
+            ("alerts", ALERTS_REFRESH, self.client.get_alerts),
+        ):
+            if now - getattr(tm, attr) <= interval:
+                continue
+            try:
+                cur = replace(cur, **{attr: await fetch(vin)})
+            except ToyotaAuthError:
+                raise
+            except ToyotaError as err:
+                _LOGGER.debug("%s unavailable: %s", attr, err)
+            setattr(tm, attr, now)
+        return cur
+
     async def _address(self, tm: _Timers, cur: VehicleData) -> str | None:
         loc = cur.location
-        if not self._opts.get(CONF_RESOLVE_ADDRESS, DEFAULT_RESOLVE_ADDRESS) or not self._maps_key or not loc:
+        if not loc:
+            return None
+        if loc.event.address:
+            return loc.event.address
+        if not self._opts.get(CONF_RESOLVE_ADDRESS, DEFAULT_RESOLVE_ADDRESS) or not self._maps_key:
             return None
         if loc.latitude is None or loc.longitude is None:
             return cur.address

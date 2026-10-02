@@ -10,7 +10,9 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from .api import ToyotaLatamClient
 from .coordinator import ToyotaCoordinator
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.DEVICE_TRACKER, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.DEVICE_TRACKER, Platform.IMAGE, Platform.SENSOR]
+IMAGE_FIRST = [Platform.IMAGE]
+REST = [p for p in PLATFORMS if p not in IMAGE_FIRST]
 
 type ToyotaConfigEntry = ConfigEntry[ToyotaCoordinator]
 
@@ -21,7 +23,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ToyotaConfigEntry) -> bo
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     entry.async_on_unload(entry.add_update_listener(_reload))
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, IMAGE_FIRST)
+    await hass.config_entries.async_forward_entry_setups(entry, REST)
     return True
 
 
