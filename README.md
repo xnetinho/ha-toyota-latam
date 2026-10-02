@@ -22,6 +22,12 @@ Integração personalizada (HACS) para os **Serviços Conectados Toyota na Amér
 
 Read-only: the Toyota LATAM API exposes no remote commands (lock, climate...).
 
+### Fields that depend on the model / Campos que dependem do modelo
+
+Toyota's API declares more fields than every car fills in (speed, engine rpm, battery voltage and status, litres of fuel, mileage, trouble codes, heading, speed-alert, tickets, alarm, geofence breaks). The integration reads all of them and **creates each entity the first time the car reports a value**, so hybrids/other models get them automatically and your device list stays free of permanently-empty entities.
+
+A API da Toyota declara mais campos do que todo carro preenche. A integração lê todos e **cria cada entidade na primeira vez que o carro informa um valor**.
+
 ## Behaviour / Comportamento
 
 - **Adaptive polling:** 30 s while a vehicle is driving, 300 s parked (Options: 15-3600 s).

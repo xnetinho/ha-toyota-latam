@@ -91,6 +91,17 @@ SERVICES = Endpoint(
     "BzTW0YOfkIV13CC23Gsj9Q",
     "NewDesign_TLAC.MyToyota_V3",
 )
+_BLK = "MyToyota_MCW/OptimizationBlocks/"
+_MYT = "NewDesign_TLAC.MyToyota_V3"
+SPEED_ALERT = Endpoint(
+    _BLK + "VehicleStatusService_SpeedAlert/DataActionGetSpeedAlertInfo", "c5q7M19yIXzmWcFUt_otYQ", _MYT
+)
+TRACKING = Endpoint(_BLK + "VehicleStatusService_Tracking/DataActionGetTrackingInfo", "oiPmOCAlW274C83cAJ4BpQ", _MYT)
+ROAD_ASSIST = Endpoint(
+    _BLK + "VehicleStatusService_RoadAssistance/DataActionGetSpeedAlertInfo", "toUajV2I_kJ8yT1qRtWBrQ", _MYT
+)
+ECALL = Endpoint(_BLK + "ECallAlert_V2/DataActionGetCentralNotifications2", "uDGQ0hgY+NM5XYR9U_7MMA", _MYT)
+ALARM = Endpoint(_BLK + "AlarmNotification_V2/DataActionGetCentralNotifications3", "MKKzbfEnhIqTYM5Ka7ZXRg", _MYT)
 GEOFENCES = Endpoint(
     "Connected_Car_MCW_NEW/Geofence/GeofenceHome_V2/DataActionGetGeofences",
     "nrim6nXWO8vQkc+L3hxugQ",
@@ -118,6 +129,10 @@ def _dt(v: Any) -> datetime | None:
     except ValueError:
         return None
     return d if d.tzinfo else d.replace(tzinfo=UTC)
+
+
+def _txt(v: Any) -> str | None:
+    return (str(v).strip() or None) if v is not None else None
 
 
 def _png(v: Any) -> bytes | None:
@@ -154,6 +169,8 @@ class Vehicle:
     connected: bool
     nickname: str | None = None
     image: bytes | None = field(default=None, repr=False, compare=False)
+    registered_at: datetime | None = None
+    country_id: int | None = None
 
     @classmethod
     def from_api(cls, d: dict) -> Vehicle | None:
@@ -170,6 +187,56 @@ class Vehicle:
             connected=bool(d.get("IsConnected", True)),
             nickname=d.get("CarNickName") or None,
             image=_png(d.get("CarImage")),
+            registered_at=_dt(d.get("DateEntry")),
+            country_id=_i(d.get("CountryId")),
+        )
+
+
+def _dtc_item(x: Any) -> str | None:
+    if isinstance(x, dict):
+        return _txt(x.get("Code") or x.get("Title") or x.get("Description"))
+    return _txt(x)
+
+
+@dataclass(frozen=True)
+class CarEvent:
+    """Fields of the API ``CarEventItem`` that are not mapped elsewhere (empty on many models)."""
+
+    vehicle_speed: float | None = None
+    speed_samples: int | None = None
+    engine_speed: float | None = None
+    battery_voltage: float | None = None
+    battery_status: str | None = None
+    fuel_remaining: float | None = None
+    mileage: float | None = None
+    status: str | None = None
+    record_type: str | None = None
+    dtc: tuple[str, ...] = ()
+    heading: str | None = None
+    radius: float | None = None
+    address: str | None = None
+    place_id: str | None = None
+
+    @classmethod
+    def from_api(cls, data: dict) -> CarEvent:
+        ev = (_list(data, "VehicleData", "Carevents", "List") or [{}])[0]
+        gps = _dict(ev, "GpsInformation")
+        speeds = [x for x in map(_f, _dict(ev, "VehicleSpeed").get("List") or []) if x is not None]
+        return cls(
+            vehicle_speed=speeds[-1] if speeds else None,
+            speed_samples=_i(ev.get("VehicleSpeedCount")),
+            engine_speed=_f(ev.get("EngineSpeed")),
+            battery_voltage=_f(ev.get("VehicleBatteryVoltage")),
+            battery_status=_txt(ev.get("BatteryStatus")),
+            fuel_remaining=_f(ev.get("FuelRemaining")),
+            mileage=_f(ev.get("Mileage")),
+            status=_txt(ev.get("Status")),
+            record_type=_txt(ev.get("TypeMerged")),
+            dtc=tuple(x for x in map(_dtc_item, _dict(ev, "DTC").get("List") or []) if x),
+            heading=_txt(gps.get("Direction")),
+            radius=_f(gps.get("Radius")),
+            address=_txt(gps.get("Address")),
+            place_id=_txt(gps.get("PlaceId")),
         )
 
 
@@ -180,6 +247,7 @@ class Location:
     event_type: str | None
     svt_mode: str | None
     maps_key: str | None = field(default=None, repr=False)
+    event: CarEvent = field(default_factory=CarEvent)
 
     @property
     def is_active(self) -> bool:
@@ -195,6 +263,7 @@ class Location:
             event_type=ev.get("EventType") or None,
             svt_mode=_dict(data, "SvtStatus").get("CurrentOperationMode") or None,
             maps_key=data.get("MapsKey") or None,
+            event=CarEvent.from_api(data),
         )
 
 
@@ -205,6 +274,7 @@ class Telemetry:
     odometer_unit: str
     ignition_on_at: datetime | None
     reported_at: datetime | None
+    event: CarEvent = field(default_factory=CarEvent)
 
     @classmethod
     def from_api(cls, data: dict) -> Telemetry:
@@ -215,6 +285,7 @@ class Telemetry:
             odometer_unit=ev.get("OdometerUnit") or "km",
             ignition_on_at=_dt(ev.get("TimestampON")),
             reported_at=_dt(ev.get("DataCreationTime")),
+            event=CarEvent.from_api(data),
         )
 
 
@@ -230,6 +301,10 @@ class Trip:
     odometer_end: float | None
     fuel_start: float | None
     fuel_end: float | None
+    event: str | None = None
+    created_at: datetime | None = None
+    speed_alert_status: str | None = None
+    speed_limit: float | None = None
 
     @property
     def distance(self) -> float | None:
@@ -251,6 +326,10 @@ class Trip:
             _f(d.get("OdometerEnd")),
             _f(d.get("FuelRemainingInit")),
             _f(d.get("FuelRemainingEnd")),
+            _txt(d.get("Event")),
+            _dt(d.get("CreatedAt")),
+            _txt(d.get("SpeedAlertConfigurationStatus")),
+            _f(d.get("SpeedLimitSetting")),
         )
 
 
@@ -262,6 +341,8 @@ class Geofence:
     longitude: float | None
     radius: float | None
     direction: str | None
+    place_id: str | None = None
+    cross_border: str | None = None
 
     @classmethod
     def from_api(cls, d: dict) -> Geofence:
@@ -273,7 +354,46 @@ class Geofence:
             longitude=_f(a.get("Longitude")),
             radius=_f(a.get("Radius")),
             direction=a.get("Direction") or None,
+            place_id=_txt(d.get("PlaceId")),
+            cross_border=_txt(d.get("CrossBorderDirection")),
         )
+
+
+@dataclass(frozen=True)
+class GeofenceBreak:
+    name: str | None
+    at: datetime | None
+    direction: str | None
+    unread: bool
+    latitude: float | None
+    longitude: float | None
+    radius: float | None
+
+    @classmethod
+    def from_api(cls, d: dict, unread: bool) -> GeofenceBreak:
+        a = _dict(d, "GeofencingAreaSetting")
+        return cls(
+            _txt(d.get("GeofenceName")),
+            _dt(d.get("DataCreationTime")),
+            _txt(d.get("CrossBorderDirection")) or _txt(a.get("Direction")),
+            unread,
+            _f(a.get("Latitude")),
+            _f(a.get("Longitude")),
+            _f(a.get("Radius")),
+        )
+
+
+@dataclass(frozen=True)
+class GeofenceData:
+    fences: tuple[Geofence, ...] = ()
+    breaks: tuple[GeofenceBreak, ...] = ()
+
+    @classmethod
+    def from_api(cls, data: dict) -> GeofenceData:
+        fences = tuple(Geofence.from_api(d) for d in _list(data, "Response", "GeoFencesList", "List"))
+        unread = [GeofenceBreak.from_api(d, True) for d in _list(data, "BrokenUnread", "BrokenFences", "List")]
+        read = [GeofenceBreak.from_api(d, False) for d in _list(data, "BrokenRead", "BrokenFences", "List")]
+        return cls(fences, tuple(unread + read))
 
 
 @dataclass(frozen=True)
@@ -303,15 +423,111 @@ class DrivingScore:
 
 
 @dataclass(frozen=True)
+class Problem:
+    title: str | None
+    description: str | None
+    priority: str | None
+    code: str | None
+
+    @classmethod
+    def from_api(cls, d: dict) -> Problem:
+        return cls(
+            _txt(d.get("Title")),
+            _txt(d.get("Description")),
+            _txt(d.get("Prioritydesc")) or _txt(d.get("Priority")),
+            _txt(d.get("Code")),
+        )
+
+
+@dataclass(frozen=True)
 class Diagnostics:
     problem_count: int
     problems: tuple[str, ...]
+    details: tuple[Problem, ...] = ()
 
     @classmethod
     def from_api(cls, data: dict) -> Diagnostics:
         items = _list(data, "Response", "ErrorCodes", "List")
-        titles = tuple(str(i.get("Title") or i.get("Description") or "") for i in items)
-        return cls(_i(_dict(data, "Response").get("Count")) or len(items), titles)
+        details = tuple(Problem.from_api(i) for i in items)
+        titles = tuple(p.title or p.description or p.code or "" for p in details)
+        return cls(_i(_dict(data, "Response").get("Count")) or len(items), titles, details)
+
+
+@dataclass(frozen=True)
+class Ticket:
+    ticket_id: str | None
+    service_status: int | None
+    ticket_status: int | None
+    category: str | None
+    service_type: str | None
+    priority: int | None
+    created_at: datetime | None
+    updated_at: datetime | None
+
+    @classmethod
+    def from_api(cls, d: dict) -> Ticket:
+        return cls(
+            _txt(d.get("TicketId")),
+            _i(d.get("ServiceStatus")),
+            _i(d.get("TicketStatus")),
+            _txt(d.get("ServiceCategory")),
+            _txt(d.get("ServiceType")),
+            _i(d.get("Priority")),
+            _dt(d.get("CreatedAt")),
+            _dt(d.get("LastUpdate")),
+        )
+
+
+@dataclass(frozen=True)
+class SpeedAlert:
+    name: str | None
+    limit: float | None
+    frequency: str | None
+    status: str | None
+
+    @classmethod
+    def from_api(cls, data: dict) -> SpeedAlert:
+        d = _dict(data, "SpeedAlertData")
+        return cls(
+            _txt(d.get("SpeedAlertName")),
+            _f(d.get("SpeedLimitSetting")),
+            _txt(d.get("NotificationFrequency")),
+            _txt(d.get("SpeedAlertConfigurationStatus")),
+        )
+
+
+@dataclass(frozen=True)
+class Alarm:
+    status: str | None
+    notified: str | None
+    start: datetime | None
+    end: datetime | None
+    latitude: float | None
+    longitude: float | None
+
+    @classmethod
+    def from_api(cls, data: dict) -> Alarm:
+        d = _dict(data, "AlarmNotificationResponse")
+        gps = _dict(d, "GpsInformation")
+        return cls(
+            _txt(d.get("AlarmStatus")),
+            _txt(d.get("SendNotification")),
+            _dt(d.get("DateTimeStart")),
+            _dt(d.get("DateTimeEnd")),
+            _f(gps.get("Latitude")),
+            _f(gps.get("Longitude")),
+        )
+
+
+@dataclass(frozen=True)
+class Alerts:
+    """Support-service state: speed alert, stolen-vehicle tracking, roadside/e-call tickets, alarm."""
+
+    speed_alert: SpeedAlert | None = None
+    tracking_tickets: tuple[Ticket, ...] = ()
+    assistance_tickets: tuple[Ticket, ...] = ()
+    ecall_tickets: tuple[Ticket, ...] = ()
+    alarm: Alarm | None = None
 
 
 @dataclass(frozen=True)
@@ -606,15 +822,44 @@ class ToyotaLatamClient:
         data = await self._call(TRIPS, {"Vin": vin})
         return [Trip.from_api(d) for d in _list(data, "Record", "Trips", "List")]
 
-    async def get_geofences(self, vin: str) -> list[Geofence]:
-        data = await self._call(GEOFENCES, {"Vin": vin})
-        return [Geofence.from_api(d) for d in _list(data, "Response", "GeoFencesList", "List")]
+    async def get_geofences(self, vin: str) -> GeofenceData:
+        return GeofenceData.from_api(await self._call(GEOFENCES, {"Vin": vin}))
 
     async def get_driving_score(self, vin: str) -> DrivingScore:
         return DrivingScore.from_api(await self._call(GAMIFICATION, {"Vin": vin}))
 
     async def get_diagnostics(self, vin: str) -> Diagnostics:
         return Diagnostics.from_api(await self._call(ECARE, {"Vin": vin, "ShowPopup": False}))
+
+    async def get_alerts(self, vin: str) -> Alerts:
+        """Five small endpoints; one that the backend rejects only blanks its own part."""
+
+        async def one(ep: Endpoint, variables: dict) -> dict:
+            try:
+                return await self._call(ep, variables)
+            except ToyotaApiError as err:
+                _LOGGER.debug("%s rejected: %s", ep.path.rsplit("/", 1)[-1], err)
+                return {}
+
+        v = {"Vin": vin}
+        sa, tr, ra, ec, al = await asyncio.gather(
+            one(SPEED_ALERT, v),
+            one(TRACKING, v),
+            one(ROAD_ASSIST, v),
+            one(ECALL, {"Vin": vin, "Enable": True}),
+            one(ALARM, v),
+        )
+
+        def tickets(d: dict, *path: str) -> tuple[Ticket, ...]:
+            return tuple(Ticket.from_api(t) for t in _list(d, *path) if _txt(t.get("TicketId")))
+
+        return Alerts(
+            speed_alert=SpeedAlert.from_api(sa),
+            tracking_tickets=tickets(tr, "Tracking", "Tickets", "List"),
+            assistance_tickets=tickets(ra, "PostTickets", "Tickets", "List"),
+            ecall_tickets=tickets(ec, "Ecall", "Entities", "List"),
+            alarm=Alarm.from_api(al),
+        )
 
     async def get_services(self, vin: str) -> Services:
         return Services.from_api(await self._call(SERVICES, {"Vin": vin, "UserType": "OWNER"}))

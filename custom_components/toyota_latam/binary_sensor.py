@@ -16,13 +16,14 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import ToyotaConfigEntry
 from .coordinator import VehicleData
-from .entity import ToyotaEntity
+from .entity import ToyotaEntity, add_dynamic
 
 
 @dataclass(frozen=True, kw_only=True)
 class ToyotaBinaryDescription(BinarySensorEntityDescription):
     value_fn: Callable[[VehicleData], bool | None]
     attrs_fn: Callable[[VehicleData], dict] | None = None
+    dynamic: bool = False
 
 
 def _loc(fn: Callable[..., bool]):
@@ -57,6 +58,24 @@ BINARY_SENSORS: tuple[ToyotaBinaryDescription, ...] = (
         attrs_fn=lambda d: {"problems": list(d.diagnostics.problems)} if d.diagnostics else {},
     ),
     ToyotaBinaryDescription(
+        key="speed_alert_enabled",
+        translation_key="speed_alert_enabled",
+        icon="mdi:speedometer-slow",
+        dynamic=True,
+        value_fn=lambda d: (
+            d.alerts.speed_alert.status.lower() in ("on", "true", "1", "active")
+            if d.alerts and d.alerts.speed_alert and d.alerts.speed_alert.status
+            else None
+        ),
+    ),
+    ToyotaBinaryDescription(
+        key="geofence_break_unread",
+        translation_key="geofence_break_unread",
+        device_class=BinarySensorDeviceClass.SAFETY,
+        dynamic=True,
+        value_fn=lambda d: any(b.unread for b in d.geofences.breaks) if d.geofences.breaks else None,
+    ),
+    ToyotaBinaryDescription(
         key="connected_services",
         translation_key="connected_services",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
@@ -68,7 +87,14 @@ BINARY_SENSORS: tuple[ToyotaBinaryDescription, ...] = (
 
 async def async_setup_entry(hass: HomeAssistant, entry: ToyotaConfigEntry, add: AddEntitiesCallback) -> None:
     co = entry.runtime_data
-    add(ToyotaBinary(co, d.vehicle, desc) for d in co.data.values() for desc in BINARY_SENSORS)
+    add_dynamic(
+        co,
+        entry,
+        add,
+        BINARY_SENSORS,
+        lambda v, desc: ToyotaBinary(co, v, desc),
+        lambda d, desc: not desc.dynamic or desc.value_fn(d) is not None,
+    )
 
 
 class ToyotaBinary(ToyotaEntity, BinarySensorEntity):

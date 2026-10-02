@@ -207,3 +207,123 @@ def test_driving_score_diagnostics_services():
     assert api.Diagnostics.from_api({"Response": {"Count": "0", "ErrorCodes": {"List": []}}}).problem_count == 0
     sv = api.Services.from_api({"ShowGeofence": True, "ShowWifi": False, "Other": 1})
     assert sv.flags == {"geofence": True, "wifi": False}
+
+
+FULL_EVENT = {
+    "VehicleData": {
+        "Carevents": {
+            "List": [
+                {
+                    "GpsInformation": {
+                        "Latitude": "-23.5",
+                        "Longitude": "-46.6",
+                        "Direction": "NE",
+                        "Radius": "15",
+                        "Address": "Av. Teste, 1",
+                        "PlaceId": "pid",
+                    },
+                    "EventType": "IG-ON",
+                    "BatteryStatus": "OK",
+                    "EngineSpeed": "2100",
+                    "FuelRemaining": "35.5",
+                    "FuelRemainingPercentage": "70",
+                    "Mileage": "1234",
+                    "Odometer": "1234",
+                    "Status": "Running",
+                    "TypeMerged": "Event",
+                    "VehicleBatteryVoltage": "12.6",
+                    "VehicleSpeed": {"List": ["10", "42.5"]},
+                    "VehicleSpeedCount": "2",
+                    "DTC": {"List": [{"Code": "P0420"}, "U0100", {"Title": "Oil"}, {}]},
+                }
+            ]
+        }
+    }
+}
+
+
+def test_car_event_all_fields_on_a_richer_model():
+    e = api.CarEvent.from_api(FULL_EVENT)
+    assert (e.vehicle_speed, e.speed_samples, e.engine_speed, e.battery_voltage) == (42.5, 2, 2100.0, 12.6)
+    assert (e.battery_status, e.fuel_remaining, e.mileage, e.status) == ("OK", 35.5, 1234.0, "Running")
+    assert e.dtc == ("P0420", "U0100", "Oil") and e.heading == "NE" and e.radius == 15.0
+    assert e.address == "Av. Teste, 1" and e.place_id == "pid"
+    assert api.Location.from_api(FULL_EVENT).event.vehicle_speed == 42.5
+    assert api.Telemetry.from_api(FULL_EVENT).event.battery_voltage == 12.6
+
+
+def test_car_event_empty_model_is_all_none():
+    empty = {"VehicleData": {"Carevents": {"List": [{"EngineSpeed": "", "VehicleSpeed": {"List": []}, "DTC": None}]}}}
+    e = api.CarEvent.from_api(empty)
+    assert e == api.CarEvent() and api.CarEvent.from_api({}) == api.CarEvent()
+
+
+def test_geofence_breaks_trip_extras_and_alerts_parsers():
+    g = api.GeofenceData.from_api(
+        {
+            "Response": {"GeoFencesList": {"List": [{"GeoFenceName": "Casa", "GeoFenceStatus": "1", "PlaceId": "p"}]}},
+            "BrokenUnread": {
+                "BrokenFences": {
+                    "List": [
+                        {
+                            "GeofenceName": "Casa",
+                            "DataCreationTime": "2026-10-01T10:00:00Z",
+                            "CrossBorderDirection": "Out",
+                            "GeofencingAreaSetting": {"Latitude": "1", "Longitude": "2", "Radius": "100"},
+                        }
+                    ]
+                }
+            },
+            "BrokenRead": {"BrokenFences": {"List": [{"GeofenceName": "Old"}]}},
+        }
+    )
+    assert g.fences[0].place_id == "p" and [b.unread for b in g.breaks] == [True, False]
+    assert g.breaks[0].direction == "Out" and g.breaks[0].radius == 100.0
+    t = api.Trip.from_api(
+        {
+            "Event": "Trip",
+            "CreatedAt": "2026-10-01T10:00:00.447Z",
+            "SpeedAlertConfigurationStatus": "On",
+            "SpeedLimitSetting": "80",
+        }
+    )
+    assert (t.event, t.speed_alert_status, t.speed_limit) == ("Trip", "On", 80.0) and t.created_at.year == 2026
+    d = api.Diagnostics.from_api(
+        {
+            "Response": {
+                "Count": "1",
+                "ErrorCodes": {"List": [{"Code": "P0420", "Title": "Cat", "Prioritydesc": "High"}]},
+            }
+        }
+    )
+    assert d.problems == ("Cat",) and d.details[0].priority == "High" and d.details[0].code == "P0420"
+    sa = api.SpeedAlert.from_api({"SpeedAlertData": {"SpeedAlertName": "Max", "SpeedLimitSetting": "110"}})
+    assert (sa.name, sa.limit) == ("Max", 110.0)
+    al = api.Alarm.from_api(
+        {"AlarmNotificationResponse": {"AlarmStatus": "Triggered", "DateTimeStart": "2026-10-01T10:00:00Z"}}
+    )
+    assert al.status == "Triggered" and al.start.year == 2026
+    tk = api.Ticket.from_api({"TicketId": "T1", "ServiceStatus": "2", "ServiceCategory": "Tow"})
+    assert (tk.ticket_id, tk.service_status, tk.category) == ("T1", 2, "Tow")
+
+
+async def test_get_alerts_isolates_rejected_endpoint(client):
+    with aioresponses() as m:
+        mock_login(m)
+        await client.login()
+        base = r".*{}$"
+        m.post(
+            re.compile(base.format("DataActionGetSpeedAlertInfo")),
+            payload={"data": {"SpeedAlertData": {"SpeedLimitSetting": "90"}}},
+            repeat=True,
+        )
+        m.post(
+            re.compile(base.format("DataActionGetTrackingInfo")), payload={"exception": {"message": "NullReference"}}
+        )
+        m.post(
+            re.compile(base.format("DataActionGetCentralNotifications2")),
+            payload={"data": {"Ecall": {"Entities": {"List": [{"TicketId": "E1"}, {"TicketId": ""}]}}}},
+        )
+        m.post(re.compile(base.format("DataActionGetCentralNotifications3")), payload={"data": {}})
+        a = await client.get_alerts("V1")
+    assert a.speed_alert.limit == 90.0 and a.tracking_tickets == () and [t.ticket_id for t in a.ecall_tickets] == ["E1"]
