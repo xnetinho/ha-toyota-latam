@@ -38,6 +38,10 @@ A API da Toyota declara mais campos do que todo carro preenche. A integração l
 - **Diagnostics:** downloadable and redacted (credentials, VIN, plate, coordinates).
 - Languages: English, Português (BR), Español.
 
+## Icon / Ícone
+
+The Toyota icon is shipped in `custom_components/toyota_latam/brand/`. Home Assistant shows it from **2026.3** on (earlier versions show the generic placeholder; the integration works the same). The Toyota logo is a trademark of Toyota Motor Corporation; this project is unofficial and not affiliated with Toyota.
+
 ## Privacy
 
 Credentials are stored in the HA config entry (Auth0 has no refresh token). Session cookies stay in memory only. This is an unofficial integration, not affiliated with Toyota; it uses a private API that may change.
