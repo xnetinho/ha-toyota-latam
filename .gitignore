@@ -5,3 +5,7 @@ __pycache__/
 .ruff_cache/
 .env
 *.zip
+
+scan_*.json
+probe/
+*.probe.json

@@ -14,8 +14,11 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
+    Diagnostics,
+    DrivingScore,
     Geofence,
     Location,
+    Services,
     Telemetry,
     ToyotaAuthError,
     ToyotaError,
@@ -30,12 +33,14 @@ from .const import (
     DEFAULT_ACTIVE_INTERVAL,
     DEFAULT_PARKED_INTERVAL,
     DEFAULT_RESOLVE_ADDRESS,
+    DIAGNOSTICS_REFRESH,
     DOMAIN,
     GARAGE_REFRESH,
     GEOCODE_MIN_MOVE_M,
     GEOFENCE_REFRESH,
     MAX_BACKOFF,
     MAX_STALE_FAILURES,
+    SLOW_REFRESH,
     TRIPS_REFRESH,
 )
 
@@ -50,6 +55,9 @@ class VehicleData:
     trips: tuple[Trip, ...] = ()
     geofences: tuple[Geofence, ...] = ()
     address: str | None = None
+    score: DrivingScore | None = None
+    diagnostics: Diagnostics | None = None
+    services: Services | None = None
     stale: bool = False
 
     @property
@@ -61,6 +69,9 @@ class VehicleData:
 class _Timers:
     trips: float = float("-inf")
     geofences: float = float("-inf")
+    score: float = float("-inf")
+    diagnostics: float = float("-inf")
+    services: float = float("-inf")
     geo_pos: tuple[float, float] | None = field(default=None)
     was_active: bool = False
 
@@ -137,6 +148,9 @@ class ToyotaCoordinator(DataUpdateCoordinator[dict[str, VehicleData]]):
                 trips=old.trips if old else (),
                 geofences=old.geofences if old else (),
                 address=old.address if old else None,
+                score=old.score if old else None,
+                diagnostics=old.diagnostics if old else None,
+                services=old.services if old else None,
             )
             tm = self._timers.setdefault(veh.vin, _Timers())
             try:
@@ -170,12 +184,32 @@ class ToyotaCoordinator(DataUpdateCoordinator[dict[str, VehicleData]]):
                     raise
                 except ToyotaError as err:
                     _LOGGER.debug("geofences failed: %s", err)
+            cur = await self._slow(cur, tm, now)
             tm.was_active = active
             cur = replace(cur, address=await self._address(tm, cur))
             out[veh.vin] = cur
         if self._vehicles and len(errors) >= 2 * len(self._vehicles):
             raise errors[0]
         return out
+
+    async def _slow(self, cur: VehicleData, tm: _Timers, now: float) -> VehicleData:
+        """Optional endpoints: failures are logged at debug and never affect core data."""
+        vin = cur.vehicle.vin
+        for attr, interval, fetch in (
+            ("score", SLOW_REFRESH, self.client.get_driving_score),
+            ("diagnostics", DIAGNOSTICS_REFRESH, self.client.get_diagnostics),
+            ("services", SLOW_REFRESH, self.client.get_services),
+        ):
+            if now - getattr(tm, attr) <= interval:
+                continue
+            try:
+                cur = replace(cur, **{attr: await fetch(vin)})
+            except ToyotaAuthError:
+                raise
+            except ToyotaError as err:
+                _LOGGER.debug("%s unavailable: %s", attr, err)
+            setattr(tm, attr, now)
+        return cur
 
     async def _address(self, tm: _Timers, cur: VehicleData) -> str | None:
         loc = cur.location

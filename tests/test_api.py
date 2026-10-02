@@ -181,3 +181,29 @@ def test_parsers_tolerate_garbage():
 def test_naive_timestamps_become_utc():
     assert api._dt("2026-10-01T22:06:06").tzinfo is not None
     assert api._dt("garbage") is None and api._dt(None) is None
+
+
+def test_vehicle_color_and_image():
+    import base64
+
+    png = b"\x89PNG\r\n\x1a\nxx"
+    v = api.Vehicle.from_api(
+        {"VIN": "V1", "CarColor": "Black Metallic", "CarNickName": "Meu", "CarImage": base64.b64encode(png).decode()}
+    )
+    assert v.color == "Black Metallic" and v.nickname == "Meu" and v.image == png
+    assert api.Vehicle.from_api({"VIN": "V1", "CarImage": "not-base64!!"}).image is None
+    assert api.Vehicle.from_api({"VIN": "V1", "CarImage": base64.b64encode(b"<svg/>").decode()}).image is None
+    assert api.Vehicle.from_api({"VIN": "V1"}).image is None
+
+
+def test_driving_score_diagnostics_services():
+    s = api.DrivingScore.from_api(
+        {"Response": {"TotalPoints": "1850", "Level": "1", "MaxLevelPoints": "2999", "QuantitySpeedBadge": "17"}}
+    )
+    assert (s.points, s.level, s.level_max_points, s.speed_badges, s.rpm_badges) == (1850, 1, 2999, 17, None)
+    assert api.DrivingScore.from_api({}).points is None
+    d = api.Diagnostics.from_api({"Response": {"Count": "1", "ErrorCodes": {"List": [{"Title": "Oil"}]}}})
+    assert d.problem_count == 1 and d.problems == ("Oil",)
+    assert api.Diagnostics.from_api({"Response": {"Count": "0", "ErrorCodes": {"List": []}}}).problem_count == 0
+    sv = api.Services.from_api({"ShowGeofence": True, "ShowWifi": False, "Other": 1})
+    assert sv.flags == {"geofence": True, "wifi": False}

@@ -80,3 +80,43 @@ async def test_long_address_keeps_full_text_in_attribute(hass, entry, mock_clien
     await setup(hass, entry)
     st = _state(hass, "sensor", "address")
     assert len(st.state) == 255 and st.attributes["full_address"] == "R" * 300
+
+
+async def test_color_plate_score_services_problem(hass, entry, mock_client):
+    await setup(hass, entry)
+    assert _state(hass, "sensor", "color").state == "Black"
+    assert _state(hass, "sensor", "plate").state == "TST1A23"
+    sc = _state(hass, "sensor", "driving_score")
+    assert sc.state == "1850" and sc.attributes["level_max_points"] == 2999
+    assert _state(hass, "sensor", "driving_level").state == "1"
+    assert _state(hass, "sensor", "available_services").state == "1"
+    pb = _state(hass, "binary_sensor", "problem")
+    assert pb.state == "off" and pb.attributes["problems"] == []
+
+
+async def test_image_entity_and_tracker_picture(hass, entry, mock_client):
+    await setup(hass, entry)
+    eid = er.async_get(hass).async_get_entity_id("image", "toyota_latam", f"{VEHICLE.vin}_picture")
+    assert eid
+    ent = hass.data["image"].get_entity(eid)
+    assert (await ent.async_image()).startswith(b"\x89PNG") and ent.content_type == "image/png"
+    tr = _state(hass, "device_tracker", "location")
+    assert tr.attributes["entity_picture"] == f"/api/image_proxy/{eid}"
+
+
+async def test_no_image_entity_without_picture(hass, entry, mock_client):
+    from dataclasses import replace
+
+    mock_client.get_vehicles.return_value = [replace(VEHICLE, image=None)]
+    await setup(hass, entry)
+    assert er.async_get(hass).async_get_entity_id("image", "toyota_latam", f"{VEHICLE.vin}_picture") is None
+    assert "entity_picture" not in _state(hass, "device_tracker", "location").attributes
+
+
+async def test_optional_endpoint_failure_does_not_affect_core(hass, entry, mock_client):
+    for m in (mock_client.get_driving_score, mock_client.get_diagnostics, mock_client.get_services):
+        m.side_effect = ToyotaConnectionError("nope")
+    co = await setup(hass, entry)
+    assert co.last_update_success and not co.data[VEHICLE.vin].stale
+    assert _state(hass, "sensor", "fuel_level").state == "84"
+    assert _state(hass, "sensor", "driving_score").state == "unknown"

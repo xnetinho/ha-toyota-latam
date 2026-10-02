@@ -73,6 +73,21 @@
       },
       "maps_key": {
         "name": "Chave do Google Maps"
+      },
+      "color": {
+        "name": "Cor"
+      },
+      "plate": {
+        "name": "Placa"
+      },
+      "driving_score": {
+        "name": "Pontuação de direção"
+      },
+      "driving_level": {
+        "name": "Nível de direção"
+      },
+      "available_services": {
+        "name": "Serviços disponíveis"
       }
     },
     "binary_sensor": {
@@ -87,11 +102,19 @@
       },
       "connected_services": {
         "name": "Serviços conectados"
+      },
+      "problem": {
+        "name": "Problema"
       }
     },
     "button": {
       "refresh": {
         "name": "Atualizar"
+      }
+    },
+    "image": {
+      "picture": {
+        "name": "Foto"
       }
     }
   }

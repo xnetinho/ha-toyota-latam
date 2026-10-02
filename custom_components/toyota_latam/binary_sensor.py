@@ -22,6 +22,7 @@ from .entity import ToyotaEntity
 @dataclass(frozen=True, kw_only=True)
 class ToyotaBinaryDescription(BinarySensorEntityDescription):
     value_fn: Callable[[VehicleData], bool | None]
+    attrs_fn: Callable[[VehicleData], dict] | None = None
 
 
 def _loc(fn: Callable[..., bool]):
@@ -49,6 +50,13 @@ BINARY_SENSORS: tuple[ToyotaBinaryDescription, ...] = (
         value_fn=lambda d: d.location.svt_mode == "04" if d.location and d.location.svt_mode else None,
     ),
     ToyotaBinaryDescription(
+        key="problem",
+        translation_key="problem",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda d: d.diagnostics.problem_count > 0 if d.diagnostics else None,
+        attrs_fn=lambda d: {"problems": list(d.diagnostics.problems)} if d.diagnostics else {},
+    ),
+    ToyotaBinaryDescription(
         key="connected_services",
         translation_key="connected_services",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
@@ -74,3 +82,9 @@ class ToyotaBinary(ToyotaEntity, BinarySensorEntity):
     def is_on(self) -> bool | None:
         d = self.vehicle_data
         return self.entity_description.value_fn(d) if d else None
+
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        d = self.vehicle_data
+        fn = self.entity_description.attrs_fn
+        return fn(d) if d and fn else None

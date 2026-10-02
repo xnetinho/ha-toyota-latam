@@ -15,8 +15,9 @@ Integração personalizada (HACS) para os **Serviços Conectados Toyota na Amér
 | Platform | Entities |
 |---|---|
 | `device_tracker` | Location (+ event type, optional street address) |
-| `sensor` | Address (street, on by default), Google Maps key (diagnostic, disabled by default), fuel level, odometer, last report, last ignition on, last trip (distance + attributes), last trip end, active geofences |
-| `binary_sensor` | Ignition, moving, stolen-vehicle tracking, connected services |
+| `image` | Vehicle picture (from the Toyota garage; also used as the tracker picture) |
+| `sensor` | Color, license plate, driving score/level (+ badges), available services, address (street, on by default), Google Maps key (diagnostic, disabled by default), fuel level, odometer, last report, last ignition on, last trip (distance + attributes), last trip end, active geofences |
+| `binary_sensor` | Problem (diagnostic trouble codes), ignition, moving, stolen-vehicle tracking, connected services |
 | `button` | Refresh now |
 
 Read-only: the Toyota LATAM API exposes no remote commands (lock, climate...).
@@ -42,4 +43,4 @@ pip install pytest-homeassistant-custom-component aioresponses ruff
 ruff check . && ruff format --check . && pytest
 ```
 
-Spec: [docs/TOYOTA_LATAM_API_SPEC.md](docs/TOYOTA_LATAM_API_SPEC.md). Decisions: [docs/adr](docs/adr).
+Endpoint discovery: [docs/API_DISCOVERY.md](docs/API_DISCOVERY.md). Spec: [docs/TOYOTA_LATAM_API_SPEC.md](docs/TOYOTA_LATAM_API_SPEC.md). Decisions: [docs/adr](docs/adr).
