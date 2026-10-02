@@ -4,9 +4,11 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.toyota_latam.api import (
+    Alerts,
     Diagnostics,
     DrivingScore,
     Geofence,
+    GeofenceData,
     Location,
     Services,
     Telemetry,
@@ -47,7 +49,8 @@ def mock_client():
         c.get_location = AsyncMock(return_value=LOC_PARKED)
         c.get_telemetry = AsyncMock(return_value=TELE)
         c.get_trips = AsyncMock(return_value=[TRIP])
-        c.get_geofences = AsyncMock(return_value=[GEOFENCE])
+        c.get_geofences = AsyncMock(return_value=GeofenceData((GEOFENCE,)))
+        c.get_alerts = AsyncMock(return_value=Alerts())
         c.get_driving_score = AsyncMock(return_value=DrivingScore(1850, 1, 300, 1500, 2999, 17, 3, 17))
         c.get_diagnostics = AsyncMock(return_value=Diagnostics(0, ()))
         c.get_services = AsyncMock(return_value=Services({"geofence": True, "wifi": False}))

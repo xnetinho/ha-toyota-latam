@@ -36,8 +36,43 @@ Booleans `ShowSubscription|Assistance|Drivers|Geofence|Insurance|SLastTrips|Spee
 - `TripDetails_V2/DataActionGetTripDetails`, `ServiceHistory_TLAC/*`: `No role validation found` (needs a different `viewName` or is gated by account role).
 - `SpeedAlert_V2/DataActionGetSpeedAlertConfig`, `ConnectedSection_V2/*`: server `NullReference` (missing screen state).
 
+## Schema fields exposed even when empty on the tested vehicle
+
+The API declares these fields for every vehicle; the tested car (Corolla Cross, no hybrid/EV) returns them empty, but other models may fill them. The integration parses all of them and creates the matching entity **the first time a value appears** (entities are never removed afterwards). Nothing is created for fields that stay empty.
+
+Source of truth for the field list: the OutSystems model scripts (`Connected_Car_BL.model.js`, `CarEventItem_BLRec`, `TicketItem3_BLRec`, ...).
+
+| API field (`Carevents.List[0]`) | Entity | Notes |
+|---|---|---|
+| `VehicleSpeed.List[]`, `VehicleSpeedCount` | `sensor.speed` (km/h) | last sample; sample count as attribute |
+| `EngineSpeed` | `sensor.engine_speed` (rpm) | |
+| `VehicleBatteryVoltage` | `sensor.battery_voltage` (V) | |
+| `BatteryStatus` | `sensor.battery_status` | text |
+| `FuelRemaining` | `sensor.fuel_remaining` (L) | `FuelRemainingPercentage` is always exposed |
+| `Mileage` | `sensor.mileage` (km) | `Odometer` is always exposed |
+| `Status`, `TypeMerged` | `sensor.vehicle_status` | `record_type` attribute |
+| `DTC.List[]` | `sensor.dtc_codes` | codes as attribute |
+| `GpsInformation.Direction` | `sensor.heading` | |
+| `GpsInformation.Address` | address sensor | used before calling Google geocoding |
+| `GpsInformation.Radius`, `PlaceId` | parsed in `CarEvent` | no entity |
+| `Vin`, `DataCreationTime`, `EventType`, `TimestampON` | already exposed | |
+
+| Other source | Entity |
+|---|---|
+| Trip `SpeedLimitSetting`, `SpeedAlertConfigurationStatus` | `sensor.last_trip_speed_limit` |
+| Trip `Event`, `CreatedAt` | parsed in `Trip` |
+| `DataActionGetSpeedAlertInfo` -> `SpeedAlertData.*` | `sensor.speed_alert_limit`, `binary_sensor.speed_alert_enabled` |
+| Tracking / road assistance / eCall `Tickets.List[]` (`TicketItem`) | `sensor.tracking_tickets`, `assistance_tickets`, `ecall_tickets` (tickets as attribute) |
+| `AlarmNotificationResponse.*` | `sensor.alarm_status` |
+| `GetGeofences` -> `BrokenUnread/BrokenRead.BrokenFences.List[]` | `sensor.geofence_breaks`, `last_geofence_break`, `binary_sensor.geofence_break_unread` |
+| Geofence `PlaceId`, `CrossBorderDirection` | parsed in `Geofence` |
+| `ErrorCodes.List[]` (`Code`, `Title`, `Description`, `Prioritydesc`) | `binary_sensor.problem` (`problems` attribute) |
+| Garage `DateEntry` | `sensor.registered_at` (disabled by default) |
+
+Alerts, geofence breaks and tickets contain no personal data in the entities we expose. The `ClientInfo`/`Bound` blocks (name, phone, e-mail) returned by the alarm/e-call endpoints are intentionally **not** parsed.
+
 ## Not available in this API (confirmed absent)
-Tire pressure, doors/windows/locks, range, speed, battery voltage, remote commands. `VehicleSpeed`, `BatteryStatus`, `EngineSpeed`, `VehicleBatteryVoltage` and `DTC` exist in the `Carevents` schema but come back empty for this vehicle.
+Tire pressure, doors/windows/locks, range, remote commands. Speed, battery voltage, engine speed and DTC exist in the schema (see above) but are empty on the tested vehicle.
 
 ## Notes on pytoyoda/ha_toyota
 Targets the **European** backend (`ctpa-oneapi.tceu-ctp-prd.toyotaconnectedeurope.io`, ForgeRock auth) via the `pytoyoda` library. Different auth, host and schema: it cannot be used as a dependency. It was used as a reference for UX (image as `entity_picture`, color as a vehicle attribute, diagnostic sensors).

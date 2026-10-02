@@ -34,3 +34,27 @@ class ToyotaEntity(CoordinatorEntity[ToyotaCoordinator]):
     @property
     def available(self) -> bool:
         return super().available and self.vehicle_data is not None
+
+
+def add_dynamic(coordinator: ToyotaCoordinator, entry, add, descriptions, build, present) -> None:
+    """Create entities now for every (vehicle, description) that is present; watch for the rest.
+
+    Fields that the API declares but leaves empty on some models get their entity the first time a value
+    shows up. Created entities are never removed (they become unknown/unavailable instead).
+    ``build(vehicle, description)`` creates the entity; ``present(data, description)`` tells if it should exist.
+    """
+    created: set[tuple[str, str]] = set()
+
+    def _scan() -> None:
+        new = []
+        for vin, d in (coordinator.data or {}).items():
+            for desc in descriptions:
+                key = (vin, desc.key)
+                if key not in created and present(d, desc):
+                    created.add(key)
+                    new.append(build(d.vehicle, desc))
+        if new:
+            add(new)
+
+    _scan()
+    entry.async_on_unload(coordinator.async_add_listener(_scan))

@@ -1,5 +1,8 @@
+from dataclasses import replace
+
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
 from custom_components.toyota_latam.api import ToyotaConnectionError
 
@@ -120,3 +123,90 @@ async def test_optional_endpoint_failure_does_not_affect_core(hass, entry, mock_
     assert co.last_update_success and not co.data[VEHICLE.vin].stale
     assert _state(hass, "sensor", "fuel_level").state == "84"
     assert _state(hass, "sensor", "driving_score").state == "unknown"
+
+
+def _rich_mocks(mock_client):
+    from custom_components.toyota_latam.api import (
+        Alarm,
+        Alerts,
+        CarEvent,
+        Diagnostics,
+        GeofenceBreak,
+        GeofenceData,
+        Problem,
+        SpeedAlert,
+        Ticket,
+    )
+
+    from .conftest import GEOFENCE, LOC_PARKED, TELE
+
+    ev = CarEvent(
+        vehicle_speed=42.5, engine_speed=2100.0, battery_voltage=12.6, battery_status="OK", fuel_remaining=35.5
+    )
+    ev2 = CarEvent(mileage=1234.0, status="Running", dtc=("P0420",), heading="NE")
+    mock_client.get_location.return_value = replace(LOC_PARKED, event=ev)
+    mock_client.get_telemetry.return_value = replace(TELE, event=ev2)
+    mock_client.get_diagnostics.return_value = Diagnostics(1, ("Cat",), (Problem("Cat", None, "High", "P0420"),))
+    mock_client.get_geofences.return_value = GeofenceData(
+        (GEOFENCE,), (GeofenceBreak("Casa", dt_util.utcnow(), "Out", True, 1.0, 2.0, 100.0),)
+    )
+    mock_client.get_alerts.return_value = Alerts(
+        speed_alert=SpeedAlert("Max", 110.0, "Daily", "On"),
+        tracking_tickets=(Ticket("T1", 1, 1, "Track", None, None, None, None),),
+        ecall_tickets=(Ticket("E1", 1, 1, "Call", None, None, None, None),),
+        alarm=Alarm("Triggered", "Y", None, None, None, None),
+    )
+
+
+async def test_fields_empty_on_this_model_get_no_entity(hass, entry, mock_client):
+    await setup(hass, entry)
+    reg = er.async_get(hass)
+    for key in ("speed", "engine_speed", "battery_voltage", "dtc_codes", "alarm_status", "geofence_breaks"):
+        assert reg.async_get_entity_id("sensor", "toyota_latam", f"{VEHICLE.vin}_{key}") is None, key
+    assert reg.async_get_entity_id("binary_sensor", "toyota_latam", f"{VEHICLE.vin}_geofence_break_unread") is None
+
+
+async def test_richer_model_gets_all_extra_entities(hass, entry, mock_client):
+    _rich_mocks(mock_client)
+    await setup(hass, entry)
+    assert _state(hass, "sensor", "speed").state == "42.5"
+    assert _state(hass, "sensor", "engine_speed").state == "2100.0"
+    assert _state(hass, "sensor", "battery_voltage").state == "12.6"
+    assert _state(hass, "sensor", "battery_status").state == "OK"
+    assert _state(hass, "sensor", "fuel_remaining").state == "35.5"
+    assert _state(hass, "sensor", "mileage").state == "1234.0"
+    assert _state(hass, "sensor", "vehicle_status").state == "Running"
+    assert _state(hass, "sensor", "heading").state == "NE"
+    dtc = _state(hass, "sensor", "dtc_codes")
+    assert dtc.state == "1" and dtc.attributes["codes"] == ["P0420"]
+    assert _state(hass, "sensor", "speed_alert_limit").state == "110.0"
+    assert _state(hass, "binary_sensor", "speed_alert_enabled").state == "on"
+    assert _state(hass, "sensor", "tracking_tickets").attributes["tickets"][0]["id"] == "T1"
+    assert _state(hass, "sensor", "ecall_tickets").state == "1"
+    assert _state(hass, "sensor", "alarm_status").state == "Triggered"
+    br = _state(hass, "sensor", "geofence_breaks")
+    assert br.state == "1" and br.attributes["breaks"][0]["direction"] == "Out"
+    assert _state(hass, "binary_sensor", "geofence_break_unread").state == "on"
+    assert _state(hass, "sensor", "last_geofence_break").state != "unknown"
+    assert _state(hass, "binary_sensor", "problem").attributes["problems"] == ["Cat"]
+
+
+async def test_entity_appears_later_when_value_first_arrives(hass, entry, mock_client):
+    co = await setup(hass, entry)
+    reg = er.async_get(hass)
+    assert reg.async_get_entity_id("sensor", "toyota_latam", f"{VEHICLE.vin}_speed") is None
+    _rich_mocks(mock_client)
+    await co.async_refresh()
+    await hass.async_block_till_done()
+    assert _state(hass, "sensor", "speed").state == "42.5"
+
+
+async def test_address_from_api_event_skips_google(hass, entry, mock_client):
+    from custom_components.toyota_latam.api import CarEvent
+
+    from .conftest import LOC_PARKED
+
+    mock_client.get_location.return_value = replace(LOC_PARKED, event=CarEvent(address="Rua da API, 9"))
+    await setup(hass, entry)
+    assert _state(hass, "sensor", "address").state == "Rua da API, 9"
+    mock_client.reverse_geocode.assert_not_called()
