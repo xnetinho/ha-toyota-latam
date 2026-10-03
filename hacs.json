@@ -1,5 +1,14 @@
 {
   "name": "Toyota LATAM",
   "homeassistant": "2025.1.0",
-  "render_readme": true
+  "render_readme": true,
+  "country": [
+    "BR",
+    "AR",
+    "CL",
+    "CO",
+    "PE",
+    "DO",
+    "PA"
+  ]
 }
