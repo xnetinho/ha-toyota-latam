@@ -6,7 +6,9 @@ Integração personalizada (HACS) para os **Serviços Conectados Toyota na Amér
 
 ## Install / Instalação
 
-1. HACS -> Custom repositories -> `https://github.com/xnetinho/ha-toyota-latam` (Integration).
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=xnetinho&repository=ha-toyota-latam&category=integration)
+
+1. Click the button above, or HACS -> Custom repositories -> `https://github.com/xnetinho/ha-toyota-latam` (Integration).
 2. Install, restart Home Assistant.
 3. Settings -> Devices & services -> Add integration -> **Toyota LATAM**; use the email/password of the Toyota app.
 
