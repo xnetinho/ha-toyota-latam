@@ -22,7 +22,7 @@ AUTH0_URL = "https://prod-tlac.us.auth0.com"
 APP_SCHEME = "com.toyotaargentina.oneapp://"
 CALLBACK_URL = f"{APP_SCHEME}Toyota_OneApp_EU/LoginCallback"
 ANON_CSRF = "T6C+9iB49TLra4jEsMeSckDMNhQ="
-FALLBACK_MODULE_VERSION = "ATQAKriP_E6m9WKUFYMekw"
+FALLBACK_MODULE_VERSION = "0tifFJQ3LnZbKi4HdVqVTw"
 USER_AGENT = "Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36"
 ACTIVE_EVENTS = frozenset({"IG-ON", "NOTIF1"})
 TIMEOUT = aiohttp.ClientTimeout(total=20)
@@ -64,35 +64,35 @@ GARAGE = Endpoint(
 LOCATION = Endpoint(
     "MyToyota_MCW/OptimizationBlocks/VehicleStatusMap_V2/DataActionGetConnectedMapInfo",
     "SMMTstf+9iTNPkzNRMP1qQ",
-    "NewDesign_TLAC.MyToyota_V3",
+    "UI_MyToyota.MyToyota_V3",
 )
 TELEMETRY = Endpoint(
     "MyToyota_MCW/OptimizationBlocks/VehicleStatus_V2/DataActionGetVehicleStatusInfo",
     "b_7E9Yzb5XwXKLpOy806Lg",
-    "NewDesign_TLAC.MyToyota_V3",
+    "UI_MyToyota.MyToyota_V3",
 )
 TRIPS = Endpoint(
     "Connected_Car_MCW_NEW/FuelConsumptionLastTrip/LastTrip_V2/DataActionGetLastTrips",
     "HIIxBlBdma9Spi2CHTDvAQ",
-    "ConnectedCar_V2.LastTrips_V2",
+    "UI_Connected.LastTrips_V2",
 )
 GAMIFICATION = Endpoint(
     "Connected_Car_MCW_NEW/FuelConsumption/FuelScore_V2/DataActionGetGamification",
     "+Vljc2BMdTwIFoxWsVjCcg",
-    "ConnectedCar_V2.FuelScore_V2",
+    "UI_Connected.FuelScore_V2",
 )
 ECARE = Endpoint(
     "Connected_Car_MCW_NEW/Ecare/CarDiagnostic_V2/DataActionGetEcareDtcs",
     "+8w5wjdCooh2Lr8KIp9J8w",
-    "ConnectedCar_V2.EcareCarDiagnostic_V2",
+    "UI_Connected.EcareCarDiagnostic_V2",
 )
 SERVICES = Endpoint(
     "MyToyota_MCW/OptimizationBlocks/VehicleStatusServices_V2/DataActionShowServices",
     "BzTW0YOfkIV13CC23Gsj9Q",
-    "NewDesign_TLAC.MyToyota_V3",
+    "UI_MyToyota.MyToyota_V3",
 )
 _BLK = "MyToyota_MCW/OptimizationBlocks/"
-_MYT = "NewDesign_TLAC.MyToyota_V3"
+_MYT = "UI_MyToyota.MyToyota_V3"
 SPEED_ALERT = Endpoint(
     _BLK + "VehicleStatusService_SpeedAlert/DataActionGetSpeedAlertInfo", "c5q7M19yIXzmWcFUt_otYQ", _MYT
 )
@@ -105,7 +105,7 @@ ALARM = Endpoint(_BLK + "AlarmNotification_V2/DataActionGetCentralNotifications3
 GEOFENCES = Endpoint(
     "Connected_Car_MCW_NEW/Geofence/GeofenceHome_V2/DataActionGetGeofences",
     "nrim6nXWO8vQkc+L3hxugQ",
-    "ConnectedCar_V2.GeofenceHome_V2",
+    "UI_Connected.GeofenceHome_V2",
 )
 
 

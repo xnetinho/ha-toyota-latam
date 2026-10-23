@@ -120,7 +120,7 @@ All URLs prefixed with `{BASE}/screenservices/`.
 
 ### 4.3 Location and moving state
 - `MyToyota_MCW/OptimizationBlocks/VehicleStatusMap_V2/DataActionGetConnectedMapInfo`
-- apiVersion `SMMTstf+9iTNPkzNRMP1qQ`, viewName `NewDesign_TLAC.MyToyota_V3`
+- apiVersion `SMMTstf+9iTNPkzNRMP1qQ`, viewName `UI_MyToyota.MyToyota_V3`
 - variables: `Vin`, `ShowMap=false`, `Address=""`, `IsDestroyed=false`, `IsMapInitialize=false`, `IsDarkMode=false`, `IsMoving=false`, `IsPopupTracking=false`, `IsSVTProcess=false`, `Latitude=""`, `Longitude=""`
 - Response:
   - `VehicleData.Carevents.List[0].GpsInformation.Latitude|Longitude` (strings)
@@ -133,18 +133,18 @@ All URLs prefixed with `{BASE}/screenservices/`.
 
 ### 4.5 Telemetry
 - `MyToyota_MCW/OptimizationBlocks/VehicleStatus_V2/DataActionGetVehicleStatusInfo`
-- apiVersion `b_7E9Yzb5XwXKLpOy806Lg`, viewName `NewDesign_TLAC.MyToyota_V3`
+- apiVersion `b_7E9Yzb5XwXKLpOy806Lg`, viewName `UI_MyToyota.MyToyota_V3`
 - variables: `Vin`, `CarId`, `ShowPopupPlate=false`, `PastMinuteLastUpdate=""`, `PastMinuteLastEngine=""`
 - Response `data.VehicleData.Carevents.List[0]`: `FuelRemainingPercentage`, `Odometer`, `OdometerUnit`, `TimestampON` (UTC ISO), `DataCreationTime` (UTC ISO)
 
 ### 4.6 Trips
 - `Connected_Car_MCW_NEW/FuelConsumptionLastTrip/LastTrip_V2/DataActionGetLastTrips`
-- apiVersion `HIIxBlBdma9Spi2CHTDvAQ`, viewName `ConnectedCar_V2.LastTrips_V2`, variables `{Vin}`
+- apiVersion `HIIxBlBdma9Spi2CHTDvAQ`, viewName `UI_Connected.LastTrips_V2`, variables `{Vin}`
 - Response `data.Record.Trips.List[]`: `DateInit`, `DateEnd`, `GPS.LatitudeInit|LongitudeInit|LatitudeEnd|LongitudeEnd`, `OdometerInit|OdometerEnd`, `FuelRemainingInit|FuelRemainingEnd`
 
 ### 4.7 Geofences
 - `Connected_Car_MCW_NEW/Geofence/GeofenceHome_V2/DataActionGetGeofences`
-- apiVersion `nrim6nXWO8vQkc+L3hxugQ`, viewName `ConnectedCar_V2.GeofenceHome_V2`, variables `{Vin}`
+- apiVersion `nrim6nXWO8vQkc+L3hxugQ`, viewName `UI_Connected.GeofenceHome_V2`, variables `{Vin}`
 - Response `data.Response.GeoFencesList.List[]`: `GeoFenceName`, `GeoFenceStatus` (`1` active / `0` inactive), `GeofencingAreaSetting.Latitude|Longitude|Radius|Direction` (`In`, `Out`, `In/Out`)
 
 ## 5. Reference behaviour (from original Python client)

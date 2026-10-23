@@ -7,9 +7,13 @@ Method: `precache.manifest` lists every file of the OutSystems app. Each screen 
 | Action | Path (under `/screenservices/`) | apiVersion | viewName | Variables |
 |---|---|---|---|---|
 | Garage | `One_App_MDB_Sync/CarSync/Bra_CarSync/DataActionGetCarsGarage` | `EEFiudv295iQFXLqEzuisg` | `NewDesign_TLAC.Home_V3` | none |
-| Driving score | `Connected_Car_MCW_NEW/FuelConsumption/FuelScore_V2/DataActionGetGamification` | `+Vljc2BMdTwIFoxWsVjCcg` | `ConnectedCar_V2.FuelScore_V2` | `Vin` |
-| Diagnostics (DTC) | `Connected_Car_MCW_NEW/Ecare/CarDiagnostic_V2/DataActionGetEcareDtcs` | `+8w5wjdCooh2Lr8KIp9J8w` | `ConnectedCar_V2.EcareCarDiagnostic_V2` | `Vin`, `ShowPopup=false` |
-| Available services | `MyToyota_MCW/OptimizationBlocks/VehicleStatusServices_V2/DataActionShowServices` | `BzTW0YOfkIV13CC23Gsj9Q` | `NewDesign_TLAC.MyToyota_V3` | `Vin`, `UserType="OWNER"` |
+| Location | `MyToyota_MCW/OptimizationBlocks/VehicleStatusMap_V2/DataActionGetConnectedMapInfo` | `SMMTstf+9iTNPkzNRMP1qQ` | `UI_MyToyota.MyToyota_V3` | `Vin`, etc. |
+| Telemetry | `MyToyota_MCW/OptimizationBlocks/VehicleStatus_V2/DataActionGetVehicleStatusInfo` | `b_7E9Yzb5XwXKLpOy806Lg` | `UI_MyToyota.MyToyota_V3` | `Vin`, `CarId`, etc. |
+| Trips | `Connected_Car_MCW_NEW/FuelConsumptionLastTrip/LastTrip_V2/DataActionGetLastTrips` | `HIIxBlBdma9Spi2CHTDvAQ` | `UI_Connected.LastTrips_V2` | `Vin` |
+| Driving score | `Connected_Car_MCW_NEW/FuelConsumption/FuelScore_V2/DataActionGetGamification` | `+Vljc2BMdTwIFoxWsVjCcg` | `UI_Connected.FuelScore_V2` | `Vin` |
+| Diagnostics (DTC) | `Connected_Car_MCW_NEW/Ecare/CarDiagnostic_V2/DataActionGetEcareDtcs` | `+8w5wjdCooh2Lr8KIp9J8w` | `UI_Connected.EcareCarDiagnostic_V2` | `Vin`, `ShowPopup=false` |
+| Available services | `MyToyota_MCW/OptimizationBlocks/VehicleStatusServices_V2/DataActionShowServices` | `BzTW0YOfkIV13CC23Gsj9Q` | `UI_MyToyota.MyToyota_V3` | `Vin`, `UserType="OWNER"` |
+| Geofences | `Connected_Car_MCW_NEW/Geofence/GeofenceHome_V2/DataActionGetGeofences` | `nrim6nXWO8vQkc+L3hxugQ` | `UI_Connected.GeofenceHome_V2` | `Vin` |
 
 ### Garage item extras
 `CarImage` is a **base64 PNG** (~600x353, ~37 KB, no data-URI prefix); `CarColor` (e.g. "Black Metallic"); `CarNickName`; `DateEntry`; many `Contract_*`/`Plan_*`/`Kinto_*`/`Salestracking_*` fields (financing, empty for most users; intentionally not exposed).
