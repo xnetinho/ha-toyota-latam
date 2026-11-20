@@ -6,7 +6,7 @@ Method: `precache.manifest` lists every file of the OutSystems app. Each screen 
 
 | Action | Path (under `/screenservices/`) | apiVersion | viewName | Variables |
 |---|---|---|---|---|
-| Garage | `One_App_MDB_Sync/CarSync/Bra_CarSync/DataActionGetCarsGarage` | `EEFiudv295iQFXLqEzuisg` | `NewDesign_TLAC.Home_V3` | none |
+| Garage | `One_App_MDB_Sync/CarSync/Bra_CarSync/DataActionGetCarsGarage` | `lij9jkSisTwmPt_BpS+Wmw` | `NewDesign_TLAC.Home_V3` | none |
 | Location | `MyToyota_MCW/OptimizationBlocks/VehicleStatusMap_V2/DataActionGetConnectedMapInfo` | `SMMTstf+9iTNPkzNRMP1qQ` | `UI_MyToyota.MyToyota_V3` | `Vin`, etc. |
 | Telemetry | `MyToyota_MCW/OptimizationBlocks/VehicleStatus_V2/DataActionGetVehicleStatusInfo` | `b_7E9Yzb5XwXKLpOy806Lg` | `UI_MyToyota.MyToyota_V3` | `Vin`, `CarId`, etc. |
 | Trips | `Connected_Car_MCW_NEW/FuelConsumptionLastTrip/LastTrip_V2/DataActionGetLastTrips` | `HIIxBlBdma9Spi2CHTDvAQ` | `UI_Connected.LastTrips_V2` | `Vin` |
@@ -32,7 +32,7 @@ Booleans `ShowSubscription|Assistance|Drivers|Geofence|Insurance|SLastTrips|Spee
 | `SpeedAlert/SpeedAlert_V2/DataActionGetSpeedAlertInfo` (`aoE325nO1ri3Ggd11CezcA`) | `TripsList` = same trips as LastTrips (15 items, `HasMore=false`) |
 | `Tracking/Tracking_V2/DataActionGetTrackingInfo` | stolen-vehicle ticket list (empty) + support phone/e-mail |
 | `ECareStatus_V2/DataActionGetCentralNotifications8` | open e-care tickets (empty) |
-| `AlarmNotification_V2`, `ECallAlert_V2`, `GeofenceCardNotify_V2`, `VehicleStatusService_Geofence` | alarm/e-call/geofence-break notifications (empty in a healthy account); contain client name/phone/e-mail |
+| `AlarmNotification_V2` (action renamed to `DataActionGetAlarmNotification`, apiVersion `KF4PdgNq8HBzQDKzmAYX3w`), `ECallAlert_V2`, `GeofenceCardNotify_V2`, `VehicleStatusService_Geofence` | alarm/e-call/geofence-break notifications (empty in a healthy account); contain client name/phone/e-mail |
 | `GeofenceMapFences_V2/DataActionGetVehicleInfo` | geofence list + car position (duplicate of existing data) |
 | `Components/CarManual/DataActionGetManual` | `Url_CarManual` (empty) |
 
@@ -80,3 +80,9 @@ Tire pressure, doors/windows/locks, range, remote commands. Speed, battery volta
 
 ## Notes on pytoyoda/ha_toyota
 Targets the **European** backend (`ctpa-oneapi.tceu-ctp-prd.toyotaconnectedeurope.io`, ForgeRock auth) via the `pytoyoda` library. Different auth, host and schema: it cannot be used as a dependency. It was used as a reference for UX (image as `entity_picture`, color as a vehicle attribute, diagnostic sensors).
+
+## Drift log
+- Backend hot-reloads change screen names (`viewName`) and per-action `apiVersion` hashes without notice.
+- A wrong `viewName` gives `No role validation found`; a wrong `apiVersion` gives **empty `data` plus `versionInfo.hasApiVersionChanged: true`** (no exception). The client raises on the latter.
+- Re-extract current hashes from `precache.manifest` -> `scripts/*.mvc.js` -> `callDataAction("<name>", "screenservices/<path>", "<apiVersion>")`.
+- 2026-11: manifest sequence 2496 -> 2550; garage hash changed; alarm action renamed. All 11 other actions unchanged.

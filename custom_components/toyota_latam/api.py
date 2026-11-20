@@ -22,7 +22,7 @@ AUTH0_URL = "https://prod-tlac.us.auth0.com"
 APP_SCHEME = "com.toyotaargentina.oneapp://"
 CALLBACK_URL = f"{APP_SCHEME}Toyota_OneApp_EU/LoginCallback"
 ANON_CSRF = "T6C+9iB49TLra4jEsMeSckDMNhQ="
-FALLBACK_MODULE_VERSION = "0tifFJQ3LnZbKi4HdVqVTw"
+FALLBACK_MODULE_VERSION = "75sZeCD_mGU1Nlxc6nDijQ"
 USER_AGENT = "Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36"
 ACTIVE_EVENTS = frozenset({"IG-ON", "NOTIF1"})
 TIMEOUT = aiohttp.ClientTimeout(total=20)
@@ -58,7 +58,7 @@ class Endpoint:
 
 GARAGE = Endpoint(
     "One_App_MDB_Sync/CarSync/Bra_CarSync/DataActionGetCarsGarage",
-    "EEFiudv295iQFXLqEzuisg",
+    "lij9jkSisTwmPt_BpS+Wmw",
     "NewDesign_TLAC.Home_V3",
 )
 LOCATION = Endpoint(
@@ -101,7 +101,7 @@ ROAD_ASSIST = Endpoint(
     _BLK + "VehicleStatusService_RoadAssistance/DataActionGetSpeedAlertInfo", "toUajV2I_kJ8yT1qRtWBrQ", _MYT
 )
 ECALL = Endpoint(_BLK + "ECallAlert_V2/DataActionGetCentralNotifications2", "uDGQ0hgY+NM5XYR9U_7MMA", _MYT)
-ALARM = Endpoint(_BLK + "AlarmNotification_V2/DataActionGetCentralNotifications3", "MKKzbfEnhIqTYM5Ka7ZXRg", _MYT)
+ALARM = Endpoint(_BLK + "AlarmNotification_V2/DataActionGetAlarmNotification", "KF4PdgNq8HBzQDKzmAYX3w", _MYT)
 GEOFENCES = Endpoint(
     "Connected_Car_MCW_NEW/Geofence/GeofenceHome_V2/DataActionGetGeofences",
     "nrim6nXWO8vQkc+L3hxugQ",
@@ -767,10 +767,14 @@ class ToyotaLatamClient:
                     raise
                 await self._relogin(gen)
                 continue
-            if _dict(body, "versionInfo").get("hasModuleVersionChanged") and attempt == 0:
+            info = _dict(body, "versionInfo")
+            if info.get("hasModuleVersionChanged") and attempt == 0:
                 self._version = None
                 await self._fetch_version()
                 continue
+            if info.get("hasApiVersionChanged"):
+                # The server answers an outdated apiVersion with empty data and no error.
+                raise ToyotaApiError(f"apiVersion outdated for {ep.path.rsplit('/', 1)[-1]}")
             return _dict(body, "data")
         raise ToyotaApiError("unreachable")  # pragma: no cover
 
