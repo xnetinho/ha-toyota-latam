@@ -7,12 +7,15 @@ import base64
 import hashlib
 import logging
 import secrets
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
 import aiohttp
+
+from .discovery import candidate_screens, discover_hashes, fetch_manifest
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +29,8 @@ FALLBACK_MODULE_VERSION = "75sZeCD_mGU1Nlxc6nDijQ"
 USER_AGENT = "Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36"
 ACTIVE_EVENTS = frozenset({"IG-ON", "NOTIF1"})
 TIMEOUT = aiohttp.ClientTimeout(total=20)
+HEAL_RETRY_SECONDS = 1800
+ORIGIN = "https://toyotaargentinasa1.outsystemsenterprise.com"
 _SVC = f"{BASE_URL}/screenservices"
 
 
@@ -43,6 +48,10 @@ class ToyotaConnectionError(ToyotaError):
 
 class ToyotaSessionExpired(ToyotaError):
     """OutSystems session no longer valid."""
+
+
+class ToyotaViewRefused(ToyotaSessionExpired):
+    """Server rejected the screen name (``No role validation found``): the session is fine, the view is not."""
 
 
 class ToyotaApiError(ToyotaError):
@@ -574,6 +583,9 @@ class ToyotaLatamClient:
         self._login_lock = asyncio.Lock()
         self._generation = 0
         self._logged_in = False
+        self._overrides: dict[str, Endpoint] = {}
+        self._heal_lock = asyncio.Lock()
+        self._heal_failed: dict[str, float] = {}
 
     def set_credentials(self, username: str, password: str) -> None:
         self._username, self._password = username, password
@@ -627,6 +639,8 @@ class ToyotaLatamClient:
         exc = body.get("exception")
         if exc:
             msg = str(_dict(body, "exception").get("message", exc))
+            if "role validation" in msg.lower():
+                raise ToyotaViewRefused(msg)
             if any(k in msg.lower() for k in ("role", "csrf", "login", "session", "authenticat")):
                 raise ToyotaSessionExpired(msg)
             raise ToyotaApiError(msg)
@@ -750,33 +764,102 @@ class ToyotaLatamClient:
             return r.headers.get("Location", "")
 
     async def _call(self, ep: Endpoint, variables: dict[str, Any]) -> dict:
-        """Authenticated data action. One transparent re-login on expired session / stale module."""
+        """Authenticated data action with transparent recovery.
+
+        Recovers from an expired session (re-login), a stale module version, and backend drift:
+        an outdated ``apiVersion`` or a renamed screen (``viewName``) is re-read from the app manifest once.
+        """
         if not self._logged_in:
             await self._relogin(self._generation)
-        for attempt in (0, 1):
+        ep = self._overrides.get(ep.path, ep)
+        healed = relogged = False
+        for attempt in range(4):
             gen = self._generation
-            payload = {
-                "versionInfo": {"moduleVersion": self._version, "apiVersion": ep.api_version},
-                "viewName": ep.view,
-                "screenData": {"variables": variables},
-            }
             try:
-                body = await self._post(f"{_SVC}/{ep.path}", payload)
+                body = await self._post(f"{_SVC}/{ep.path}", self._payload(ep, variables))
+            except ToyotaViewRefused:
+                # An expired session and a renamed screen get the same answer. Telling them apart needs the manifest, so
+                # probe it once for this endpoint; if the manifest cannot fix it, the session is the likely culprit.
+                if not healed and (fixed := await self._heal(ep, variables)):
+                    ep, healed = fixed, True
+                    continue
+                if not relogged:
+                    relogged = True
+                    await self._relogin(gen)
+                    continue
+                raise
             except ToyotaSessionExpired:
                 if attempt:
                     raise
                 await self._relogin(gen)
                 continue
             info = _dict(body, "versionInfo")
-            if info.get("hasModuleVersionChanged") and attempt == 0:
+            if info.get("hasModuleVersionChanged") and attempt < 3:
                 self._version = None
                 await self._fetch_version()
                 continue
             if info.get("hasApiVersionChanged"):
-                # The server answers an outdated apiVersion with empty data and no error.
+                if not healed and (fixed := await self._heal(ep, variables)):
+                    ep, healed = fixed, True
+                    continue
                 raise ToyotaApiError(f"apiVersion outdated for {ep.path.rsplit('/', 1)[-1]}")
             return _dict(body, "data")
         raise ToyotaApiError("unreachable")  # pragma: no cover
+
+    def _payload(self, ep: Endpoint, variables: dict[str, Any]) -> dict:
+        return {
+            "versionInfo": {"moduleVersion": self._version, "apiVersion": ep.api_version},
+            "viewName": ep.view,
+            "screenData": {"variables": variables},
+        }
+
+    async def _heal(self, ep: Endpoint, variables: dict[str, Any]) -> Endpoint | None:
+        """Re-read the endpoint's ``apiVersion`` (and, if refused, its ``viewName``) from the app manifest."""
+        async with self._heal_lock:
+            current = self._overrides.get(ep.path)
+            if current is not None and current != ep:
+                return current  # another task already fixed it
+            if time.monotonic() - self._heal_failed.get(ep.path, float("-inf")) < HEAL_RETRY_SECONDS:
+                return None  # known unrecoverable for now: do not hammer the backend every poll
+            fixed = await self._try_heal(ep, variables)
+            if fixed is None:
+                self._heal_failed[ep.path] = time.monotonic()
+            else:
+                self._heal_failed.pop(ep.path, None)
+            return fixed
+
+    async def _try_heal(self, ep: Endpoint, variables: dict[str, Any]) -> Endpoint | None:
+        manifest = await fetch_manifest(self._session, BASE_URL, USER_AGENT)  # fresh: the backend may redeploy again
+        if manifest is None:
+            return None
+        self._version = manifest.version
+        hashes = await discover_hashes(self._session, manifest, ORIGIN, [ep.path], USER_AGENT)
+        api_version = hashes.get(ep.path)
+        if api_version is None:
+            _LOGGER.warning("Toyota app no longer publishes %s; the integration may need an update", ep.path)
+            return None
+        # The server checks the apiVersion before the screen name, so a wrong hash hides a wrong view. Whatever the
+        # trigger was, try the current hash with the known view first, then with same-named screens of other flows.
+        views = [ep.view, *candidate_screens(manifest, ep.view)]
+        for view in views:
+            cand = Endpoint(ep.path, api_version, view)
+            if cand == ep:
+                continue
+            try:
+                body = await self._post(f"{_SVC}/{ep.path}", self._payload(cand, variables))
+            except (ToyotaViewRefused, ToyotaApiError):
+                continue
+            if _dict(body, "versionInfo").get("hasApiVersionChanged"):
+                continue
+            self._overrides[ep.path] = cand
+            _LOGGER.info(
+                "Toyota backend changed; recovered %s (apiVersion %s, view %s)",
+                ep.path.rsplit("/", 1)[-1],
+                "updated" if api_version != ep.api_version else "same",
+                "updated" if view != ep.view else "same",
+            )
+            return cand
+        return None
 
     async def _relogin(self, seen_generation: int) -> None:
         async with self._login_lock:
