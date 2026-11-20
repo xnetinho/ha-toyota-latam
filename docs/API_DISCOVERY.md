@@ -82,7 +82,26 @@ Tire pressure, doors/windows/locks, range, remote commands. Speed, battery volta
 Targets the **European** backend (`ctpa-oneapi.tceu-ctp-prd.toyotaconnectedeurope.io`, ForgeRock auth) via the `pytoyoda` library. Different auth, host and schema: it cannot be used as a dependency. It was used as a reference for UX (image as `entity_picture`, color as a vehicle attribute, diagnostic sensors).
 
 ## Drift log
-- Backend hot-reloads change screen names (`viewName`) and per-action `apiVersion` hashes without notice.
-- A wrong `viewName` gives `No role validation found`; a wrong `apiVersion` gives **empty `data` plus `versionInfo.hasApiVersionChanged: true`** (no exception). The client raises on the latter.
-- Re-extract current hashes from `precache.manifest` -> `scripts/*.mvc.js` -> `callDataAction("<name>", "screenservices/<path>", "<apiVersion>")`.
-- 2026-11: manifest sequence 2496 -> 2550; garage hash changed; alarm action renamed. All 11 other actions unchanged.
+
+The backend hot-reloads without notice. Two different things have changed so far, and they fail differently:
+
+| When | What changed | Symptom |
+|---|---|---|
+| 2026-10 | Screen names (`viewName`): `NewDesign_TLAC.MyToyota_V3` -> `UI_MyToyota.MyToyota_V3`, `ConnectedCar_V2.*` -> `UI_Connected.*`. `apiVersion` hashes were unchanged. | exception `No role validation found` |
+| 2026-11 | Garage `apiVersion` hash; alarm action renamed (`DataActionGetCentralNotifications3` -> `DataActionGetAlarmNotification`). `viewName`s unchanged. | **empty `data` + `versionInfo.hasApiVersionChanged: true`, no exception** |
+
+The server validates the `apiVersion` **before** the screen name, so a stale hash hides a stale screen name.
+
+## Self-healing (`discovery.py`)
+
+The app publishes both values itself, so the client re-reads them instead of depending only on constants:
+
+1. `GET precache.manifest` -> `urlVersions` lists every script with its cache hash.
+2. The script defining an action is `scripts/<Module>.<Flow>.<Screen>.mvc.js` (the action path minus its last segment, dots instead of slashes). It contains `callDataAction("<name>", "screenservices/<path>", "<apiVersion>")`.
+3. Screen names are read from file names only: `scripts/Toyota_OneApp_EU.<Flow>.<Screen>.mvc.js` -> `<Flow>.<Screen>`. A renamed flow keeps the screen leaf, so candidates are "same leaf, other flow".
+
+`ToyotaLatamClient._call` recovers once per endpoint when it sees `hasApiVersionChanged` or `No role validation found`: it fetches the current hash and tries it with the known screen name, then with same-leaf screens, and remembers the first combination the server accepts. A failed recovery is not retried for 30 minutes. Session expiry gives the same `No role validation found`, so if the manifest cannot explain the refusal the client falls back to one re-login.
+
+Limits: an action that is removed or renamed (like the alarm one) is not found by path, and a screen renamed to an unrelated leaf is not guessed. Both still need a release; the client logs a warning naming the action.
+
+Re-extract everything by hand: the 519 `callDataAction`/`callServerAction` entries in all `*.mvc.js` scripts.

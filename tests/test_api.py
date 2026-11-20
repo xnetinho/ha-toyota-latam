@@ -329,11 +329,96 @@ async def test_get_alerts_isolates_rejected_endpoint(client):
     assert a.speed_alert.limit == 90.0 and a.tracking_tickets == () and [t.ticket_id for t in a.ecall_tickets] == ["E1"]
 
 
-async def test_outdated_api_version_is_an_error_not_empty_data(client):
+GARAGE_PATH = "One_App_MDB_Sync/CarSync/Bra_CarSync/DataActionGetCarsGarage"
+SCRIPT_KEY = "/Toyota_OneApp_EU/scripts/One_App_MDB_Sync.CarSync.Bra_CarSync.mvc.js"
+SCRIPT_URL = f"https://toyotaargentinasa1.outsystemsenterprise.com{SCRIPT_KEY}?h1"
+GARAGE_OK = {
+    "versionInfo": {"hasApiVersionChanged": False},
+    "data": {"Out_CarouselCarsList": {"List": [{"VIN": "V1"}]}},
+}
+GARAGE_STALE = {"versionInfo": {"hasApiVersionChanged": True}, "data": {}}
+
+
+def _manifest(*screens):
+    files = {SCRIPT_KEY: "?h1"} | {f"/Toyota_OneApp_EU/scripts/Toyota_OneApp_EU.{s}.mvc.js": "?x" for s in screens}
+    return {"versionToken": "VER2", "versionSequence": 2, "urlVersions": files}
+
+
+def _script(api_version):
+    return f'x.callDataAction("DataActionGetCarsGarage", "screenservices/{GARAGE_PATH}", "{api_version}", f)'
+
+
+async def test_stale_api_version_is_healed_from_manifest(client):
     with aioresponses() as m:
         mock_login(m)
         await client.login()
-        stale = {"versionInfo": {"hasApiVersionChanged": True}, "data": {}}
-        m.post(re.compile(r".*DataActionGetCarsGarage$"), payload=stale)
+        url = re.compile(r".*DataActionGetCarsGarage$")
+        m.post(url, payload=GARAGE_STALE)
+        m.get(f"{api.BASE_URL}/precache.manifest", payload=_manifest())
+        m.get(SCRIPT_URL, body=_script("NEWHASH"))
+        m.post(url, payload=GARAGE_OK, repeat=True)
+        assert [v.vin for v in await client.get_vehicles()] == ["V1"]
+        assert client._overrides[GARAGE_PATH].api_version == "NEWHASH"
+        assert [v.vin for v in await client.get_vehicles()] == ["V1"]  # remembered: no second heal
+
+
+async def test_renamed_screen_is_healed_from_manifest(client):
+    with aioresponses() as m:
+        mock_login(m)
+        await client.login()
+        url = re.compile(r".*DataActionGetCarsGarage$")
+        refused = {"data": {}, "exception": {"message": "No role validation found"}}
+        m.post(url, payload=refused)
+        m.get(f"{api.BASE_URL}/precache.manifest", payload=_manifest("UI_Home.Home_V3", "NewDesign_TLAC.Home_V3"))
+        m.get(SCRIPT_URL, body=_script("lij9"))
+        m.post(url, payload=refused)  # same hash, old screen name: still refused
+        m.post(url, payload=GARAGE_OK, repeat=True)
+        assert [v.vin for v in await client.get_vehicles()] == ["V1"]
+        assert client._overrides[GARAGE_PATH].view == "UI_Home.Home_V3"
+
+
+async def test_unrecoverable_drift_raises_and_is_not_retried_every_poll(client):
+    with aioresponses() as m:
+        mock_login(m)
+        await client.login()
+        url = re.compile(r".*DataActionGetCarsGarage$")
+        m.post(url, payload=GARAGE_STALE, repeat=True)
+        m.get(f"{api.BASE_URL}/precache.manifest", payload=_manifest(), repeat=True)
+        m.get(SCRIPT_URL, body="no actions here", repeat=True)
         with pytest.raises(api.ToyotaApiError, match="apiVersion outdated"):
             await client.get_vehicles()
+        manifest_calls = sum(1 for k in m.requests if k[1].path.endswith("precache.manifest"))
+        with pytest.raises(api.ToyotaApiError, match="apiVersion outdated"):
+            await client.get_vehicles()
+        assert sum(1 for k in m.requests if k[1].path.endswith("precache.manifest")) == manifest_calls
+
+
+async def test_expired_session_is_recovered_by_relogin(client):
+    """Session expiry and a renamed screen look identical to the server; both must end in working data."""
+    with aioresponses() as m:
+        mock_login(m)
+        await client.login()
+        url = re.compile(r".*DataActionGetCarsGarage$")
+        refused = {"data": {}, "exception": {"message": "No role validation found"}}
+        m.post(url, payload=refused, repeat=True)
+        m.get(f"{api.BASE_URL}/precache.manifest", payload=_manifest(), repeat=True)
+        m.get(SCRIPT_URL, body="no actions here", repeat=True)  # manifest cannot explain it -> must be the session
+        mock_login(m)
+        m.post(url, payload=GARAGE_OK, repeat=True)
+        gen = client._generation
+        # first call keeps being refused until the re-login, which the mock cannot tell apart; assert the retry path
+        with pytest.raises(api.ToyotaViewRefused):
+            await client.get_vehicles()
+        assert client._generation == gen + 1  # a re-login happened
+        assert not client._overrides  # and nothing was wrongly "healed"
+
+
+def test_discovery_parsers():
+    from custom_components.toyota_latam import discovery
+
+    man = discovery.Manifest.from_json(_manifest("UI_MyToyota.MyToyota_V3", "NewDesign_TLAC.Home_V3"))
+    assert man.version == "VER2" and man.script_for_module(GARAGE_PATH) == SCRIPT_KEY
+    assert man.script_for_module("Nope/X/DataActionY") is None and man.script_for_module("short/path") is None
+    assert man.screens() == ["NewDesign_TLAC.Home_V3", "UI_MyToyota.MyToyota_V3"]
+    assert discovery.candidate_screens(man, "NewDesign_TLAC.MyToyota_V3") == ["UI_MyToyota.MyToyota_V3"]
+    assert discovery.Manifest.from_json({"versionToken": "x"}) is None and discovery.Manifest.from_json({}) is None
