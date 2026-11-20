@@ -115,7 +115,7 @@ All URLs prefixed with `{BASE}/screenservices/`.
 
 ### 4.2 Garage
 - `One_App_MDB_Sync/CarSync/Bra_CarSync/DataActionGetCarsGarage`
-- apiVersion `EEFiudv295iQFXLqEzuisg`, viewName `NewDesign_TLAC.Home_V3`, variables `{}`
+- apiVersion `lij9jkSisTwmPt_BpS+Wmw`, viewName `NewDesign_TLAC.Home_V3`, variables `{}`
 - Response `data.Out_CarouselCarsList.List[]`: `VIN`, `CarId`, `ClientCarId`, `Model`, `ComercialDenomination`, `LicensePlated`, `CarColor`, `Year`, `IsConnected`
 
 ### 4.3 Location and moving state

@@ -324,6 +324,16 @@ async def test_get_alerts_isolates_rejected_endpoint(client):
             re.compile(base.format("DataActionGetCentralNotifications2")),
             payload={"data": {"Ecall": {"Entities": {"List": [{"TicketId": "E1"}, {"TicketId": ""}]}}}},
         )
-        m.post(re.compile(base.format("DataActionGetCentralNotifications3")), payload={"data": {}})
+        m.post(re.compile(base.format("DataActionGetAlarmNotification")), payload={"data": {}})
         a = await client.get_alerts("V1")
     assert a.speed_alert.limit == 90.0 and a.tracking_tickets == () and [t.ticket_id for t in a.ecall_tickets] == ["E1"]
+
+
+async def test_outdated_api_version_is_an_error_not_empty_data(client):
+    with aioresponses() as m:
+        mock_login(m)
+        await client.login()
+        stale = {"versionInfo": {"hasApiVersionChanged": True}, "data": {}}
+        m.post(re.compile(r".*DataActionGetCarsGarage$"), payload=stale)
+        with pytest.raises(api.ToyotaApiError, match="apiVersion outdated"):
+            await client.get_vehicles()
